@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import gymnasium as gym
 import matplotlib.pyplot as plt
+from sklearn.preprocessing import normalize
 
 import random
 import torch
@@ -14,11 +15,13 @@ device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
 
 class OUNoise:
-    def __init__(self, action_dim, mu=0.0, theta=0.15, sigma=0.2):
+    def __init__(self, action_dim, mu=0.0, theta=0.15, sigma=0.2, sigma_min = 0.01, sigma_decay = 0.9995):
         self.action_dim = action_dim
         self.mu = mu
         self.theta = theta
         self.sigma = sigma
+        self.sigma_min = sigma_min
+        self.sigma_decay = sigma_decay
         self.state = np.ones(self.action_dim) * self.mu
     
     def reset(self):
@@ -27,6 +30,7 @@ class OUNoise:
     def sample(self):
         dx = self.theta * (self.mu - self.state) + self.sigma * np.random.randn(self.action_dim)
         self.state += dx
+        self.sigma = max(self.sigma_min, self.sigma * self.sigma_decay)
         return self.state
 
 class DDPGMemory:
@@ -73,12 +77,12 @@ class Policy(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), policy_lr)
         self.to(device)
     
-    def preprocess(self, policy_input, train=True):
-        return policy_input
+    def preprocess(self, policy_input):
+        return functional.normalize(policy_input, p=2, dim=-1)
         
     def forward(self, inputs,preprocess=False):
-        if preprocess:
-            inputs = self.preprocess(inputs)
+        # if preprocess:
+        #     inputs = self.preprocess(inputs)
         x = functional.relu(self.linear_layer_1(inputs))
         x = functional.relu(self.linear_layer_2(x))
         
@@ -98,12 +102,12 @@ class Value(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), value_lr)
         self.to(device)
     
-    def preprocess(self, value_input, train=True):
-        return value_input
+    def preprocess(self, value_input):
+        return functional.normalize(value_input, p=2, dim=-1)
     
     def forward(self, inputs, preprocess=False):
-        if preprocess:
-            inputs = self.preprocess(inputs)
+        # if preprocess:
+        #     inputs = self.preprocess(inputs)
         x = functional.relu(self.linear_layer_1(inputs))
         x = functional.relu(self.linear_layer_2(x))
         return self.linear_layer_3(x).squeeze()
@@ -158,7 +162,7 @@ class DDPG:
             # optimization step (critic)
             self.q.optimizer.zero_grad()
             critic_loss.backward()
-            # nn.utils.clip_grad_norm_(self.q.parameters(), 1.0)
+            # nn.utils.clip_grad_norm_(self.q.parameters(), 5.0)
             self.q.optimizer.step()
 
             # compute policy (actor) loss
@@ -171,7 +175,7 @@ class DDPG:
             # optimization step (policy)
             self.pi.optimizer.zero_grad()
             policy_loss.backward()
-            # nn.utils.clip_grad_norm_(self.pi.parameters(), 1.0)
+            # nn.utils.clip_grad_norm_(self.pi.parameters(), 5.0)
             self.pi.optimizer.step()
 
             # update target networks
@@ -190,80 +194,8 @@ class DDPG:
             # self.track_data("Target / Target (min)", torch.min(y).item())
             # self.track_data("Target / Target (mean)", torch.mean(y).item())
         
-        self.pi_loss.append(policy_loss)
-        self.q_loss.append(critic_loss)
+        self.pi_loss.append(policy_loss.detach().cpu().numpy().item())
+        self.q_loss.append(critic_loss.detach().cpu().numpy().item())
         
         if train_iteration % 100 == 0:
             print(f'timestep {train_iteration}/{self.T}: Policy loss = {self.pi_loss[-1]} || Value loss = {self.q_loss[-1]}')
-        
-        
-
-
-if __name__ == '__main__':
-    np.random.seed(42)
-
-    env = gym.make('Pendulum-v1')
-    state_dim = env.observation_space.shape[0]
-    action_dim = env.action_space.shape[0]
-
-    policy = Policy(state_dim=state_dim, action_dim=action_dim, policy_lr=1e-3)
-    policy_tilde = Policy(state_dim=state_dim, action_dim=action_dim, policy_lr=1e-3)
-    policy_tilde.load_state_dict(policy.state_dict())
-    
-    value = Value(state_dim=state_dim, action_dim=action_dim, value_lr=1e-3)
-    value_tilde = Value(state_dim=state_dim, action_dim=action_dim, value_lr=1e-3)
-    value_tilde.load_state_dict(value.state_dict())
-
-    training_steps = 15000
-    discount_gamma = 0.99
-    buffer_length = 1000
-    batch_size = 128
-    
-    agent = DDPG(policy_network=policy, target_policy=policy_tilde, env=env,
-                 value_network=value, target_value_function=value_tilde,
-                 discount_factor=discount_gamma, total_training_time=training_steps)
-    
-    memory = DDPGMemory(buffer_length=buffer_length)
-
-
-    noise = OUNoise(action_dim=action_dim)
-
-    obs, _ = env.reset()
-    episode_rewards = []
-    total_reward = 0
-
-    for t in range(training_steps):
-        obs = torch.tensor(obs).to(device=device)
-        action = policy.forward(obs)
-        noisy_action = action.detach().cpu().numpy() + noise.sample()
-        noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
-        obs_, reward, termination, truncation, _ = env.step(noisy_action)
-        done = termination + truncation
-        total_reward += reward
-        
-        state_tensor = torch.tensor(obs,dtype=torch.float32)
-        action_tensor = torch.tensor(noisy_action,dtype=torch.float32)
-        reward_tensor = torch.tensor(reward,dtype=torch.float32)
-        next_state_tensor = torch.tensor(obs_, dtype=torch.float32)
-        done = torch.tensor(done, dtype=torch.int)
-        
-        memory.add_sample(state=state_tensor, action=action_tensor, reward=reward_tensor,
-                          next_state=next_state_tensor, done=done)
-        
-        if len(memory.states) >= batch_size:
-            agent.train(memory_buffer=memory, train_iteration=t, batch_size=batch_size,epochs=1)
-        
-        if done.item():
-            episode_rewards.append(total_reward)
-            print(f'Return for episode {len(episode_rewards)} is : {total_reward}')
-            total_reward = 0
-            obs, _ = env.reset()
-        else:
-            obs = obs_
-        
-plt.plot(agent.q_loss.cpu())
-plt.ylabel('Value function approximator loss')
-plt.xlabel('training steps')
-plt.grid()
-plt.show() 
-

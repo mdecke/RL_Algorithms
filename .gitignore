@@ -2,3 +2,4 @@
 play.py
 
 #Folders to ignore:
+__pycache__
