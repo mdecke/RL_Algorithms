@@ -1,10 +1,12 @@
-import random
+import os
 import torch
+import joblib
 
 import numpy as np
 import pandas as pd
 import gymnasium as gym
 import matplotlib.pyplot as plt
+from sklearn.neighbors import KernelDensity
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -16,11 +18,16 @@ print(f"Using device: {device}")
 
 if __name__ == '__main__':
     np.random.seed(42)
-
+    
+    print('... loading P(a) ...')
+    root_path = "/Users/mathieudecker/University/CalTech/Code/InvertedPendulum/Data/Files"
+    model_path = os.path.join(root_path,'P(a)_KDE.pkl')
+    action_dist = joblib.load(model_path)
+    
     env = gym.make('Pendulum-v1')
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
-
+    
     policy_losses = pd.DataFrame()
     value_losses = pd.DataFrame()
     training_returns = pd.DataFrame()
@@ -56,19 +63,24 @@ if __name__ == '__main__':
         episode_rewards = []
         total_reward = 0
         exploration_noise = []
+        warm_up_actions = []
 
         for t in range(training_steps):
             obs = torch.tensor(obs).to(device=device)
 
             if t <= warm_up:
-                noisy_action = env.action_space.sample()
+                noisy_action = action_dist.sample(action_dim).squeeze()
+                warm_up_actions.append(noisy_action)
             else:
                 action = policy.forward(obs)
-                expl_noise = noise.sample()
-                exploration_noise.append(expl_noise)
-                noisy_action = action.detach().cpu().numpy() + expl_noise
-                noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
-            
+                cpu_action = action.detach().cpu().numpy()
+                # expl_noise = noise.sample()
+                # exploration_noise.append(expl_noise)
+                expected_action = action_dist.sample(action_dim).squeeze()
+                noise = 0.1*abs(cpu_action - expected_action)
+                noisy_action = cpu_action + noise
+                
+            noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
             obs_, reward, termination, truncation, _ = env.step(noisy_action)
             done = termination + truncation
             total_reward += reward
@@ -93,7 +105,7 @@ if __name__ == '__main__':
                 print(f'Return for episode {len(episode_rewards)} is : {total_reward}')
                 total_reward = 0
                 obs, _ = env.reset()
-                noise.reset()
+                # noise.reset()
             else:
                 obs = obs_
         
@@ -109,12 +121,10 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('Train_losses.csv')  
+    train_losses.to_csv('Action_dist_train_losses.csv')  
     # time = np.linspace(0,training_steps-warm_up, 1)
 
     quit()
-    # time = np.linspace(0,training_steps-warm_up, 1)
-
     window_size = 50  # window size for smoothing
 
     # Compute rolling mean and std

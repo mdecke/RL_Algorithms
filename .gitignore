@@ -3,3 +3,4 @@ play.py
 
 #Folders to ignore:
 Algorithms/__pycache__
+Data
