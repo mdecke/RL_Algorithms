@@ -1,6 +1,13 @@
 #Files to ignore:
 play.py
+play2.py
+Action_dist_train_losses.csv
+PrevActionLoss.csv
+StateActionLosses.csv
+testloss.csv
+Train_losses.csv
 
 #Folders to ignore:
 Algorithms/__pycache__
+MiscFunctions/__pycache__
 Data

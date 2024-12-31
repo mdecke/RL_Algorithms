@@ -1,15 +1,14 @@
 import numpy as np
 import pandas as pd
 import gymnasium as gym
-import matplotlib.pyplot as plt
-from sklearn.preprocessing import normalize
 
 import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as functional
-from torch.utils.data import DataLoader, TensorDataset
+
+from sklearn.cluster import KMeans
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
@@ -32,6 +31,7 @@ class OUNoise:
         self.state += dx
         self.sigma = max(self.sigma_min, self.sigma * self.sigma_decay)
         return self.state
+
 
 class DDPGMemory:
     def __init__(self, buffer_length:int):
@@ -69,7 +69,7 @@ class Policy(nn.Module):
         super().__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
-
+    
         self.linear_layer_1 = nn.Linear(self.state_dim, 400)
         self.linear_layer_2 = nn.Linear(400, 300)
         self.action_layer = nn.Linear(300, self.action_dim)
@@ -133,7 +133,7 @@ class DDPG:
         for target_param, source_param in zip(target_network.parameters(), network.parameters()):
             target_param.data.copy_(tau * source_param.data + (1.0 - tau) * target_param.data)
 
-    
+
     def train(self,memory_buffer:DDPGMemory, train_iteration:int, batch_size:int, epochs:int):
         for epoch in range(epochs):
             # sample a batch from memory
@@ -148,6 +148,7 @@ class DDPG:
             
             # compute target values
             with torch.no_grad():
+                
                 next_actions = self.pi_t.forward(sampled_next_states)
                 next_state_action_pairs = torch.cat([sampled_next_states, next_actions], dim=1)
                 target_q_values = self.q_t.forward(next_state_action_pairs)

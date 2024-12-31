@@ -1,16 +1,15 @@
-import os
+import random
 import torch
-import joblib
 
 import numpy as np
 import pandas as pd
 import gymnasium as gym
 import matplotlib.pyplot as plt
-from sklearn.neighbors import KernelDensity
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Algorithms.DDPG import *
+from MiscFunctions.Plotting import *
 
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
@@ -18,16 +17,11 @@ print(f"Using device: {device}")
 
 if __name__ == '__main__':
     np.random.seed(42)
-    
-    print('... loading P(a) ...')
-    root_path = "/Users/mathieudecker/University/CalTech/Code/InvertedPendulum/Data/Files"
-    model_path = os.path.join(root_path,'P(a)_KDE.pkl')
-    action_dist = joblib.load(model_path)
-    
+
     env = gym.make('Pendulum-v1')
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
-    
+
     policy_losses = pd.DataFrame()
     value_losses = pd.DataFrame()
     training_returns = pd.DataFrame()
@@ -63,24 +57,19 @@ if __name__ == '__main__':
         episode_rewards = []
         total_reward = 0
         exploration_noise = []
-        warm_up_actions = []
 
         for t in range(training_steps):
             obs = torch.tensor(obs).to(device=device)
 
             if t <= warm_up:
-                noisy_action = action_dist.sample(action_dim).squeeze()
-                warm_up_actions.append(noisy_action)
+                noisy_action = env.action_space.sample()
             else:
                 action = policy.forward(obs)
-                cpu_action = action.detach().cpu().numpy()
-                # expl_noise = noise.sample()
-                # exploration_noise.append(expl_noise)
-                expected_action = action_dist.sample(action_dim).squeeze()
-                noise = 0.1*abs(cpu_action - expected_action)
-                noisy_action = cpu_action + noise
-                
-            noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
+                expl_noise = noise.sample()
+                exploration_noise.append(expl_noise)
+                noisy_action = action.detach().cpu().numpy() + expl_noise
+                noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
+            
             obs_, reward, termination, truncation, _ = env.step(noisy_action)
             done = termination + truncation
             total_reward += reward
@@ -95,17 +84,14 @@ if __name__ == '__main__':
                             next_state=next_state_tensor, done=done)
             
             if t>=warm_up and len(memory.states) >= batch_size:
-                # print('training')
                 agent.train(memory_buffer=memory, train_iteration=t, batch_size=batch_size,epochs=1)
-            # else:
-                # print('not training')
             
             if done.item():
                 episode_rewards.append(total_reward)
                 print(f'Return for episode {len(episode_rewards)} is : {total_reward}')
                 total_reward = 0
                 obs, _ = env.reset()
-                # noise.reset()
+                noise.reset()
             else:
                 obs = obs_
         
@@ -121,56 +107,5 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('Action_dist_train_losses.csv')  
-    # time = np.linspace(0,training_steps-warm_up, 1)
-
-    quit()
-    window_size = 50  # window size for smoothing
-
-    # Compute rolling mean and std
-    pi_loss_mean = pi_loss_series.rolling(window=window_size).mean()
-    pi_loss_std = pi_loss_series.rolling(window=window_size).std()
-    q_loss_mean = q_loss_series.rolling(window=window_size).mean()
-    q_loss_std = q_loss_series.rolling(window=window_size).std()
-
-    plt.figure(figsize=(10, 8))
-
-    # Q-function loss subplot
-    plt.subplot(3, 1, 1)
-    plt.plot(q_loss_mean, label='Q-value Loss (smoothed)', color='blue')
-    plt.fill_between(x=range(len(q_loss_mean)),
-                    y1=q_loss_mean - q_loss_std,
-                    y2=q_loss_mean + q_loss_std,
-                    color='blue', alpha=0.2)
-    plt.ylabel('Value Loss')
-    plt.xlabel('Training Steps')
-    plt.title('Q-function Loss (Smoothed)')
-    plt.grid(True)
-    plt.legend()
-
-    # Policy loss subplot
-    plt.subplot(3, 1, 2)
-    plt.plot(pi_loss_mean, label='Policy Loss (smoothed)', color='orange')
-    plt.fill_between(x=range(len(pi_loss_mean)),
-                    y1=pi_loss_mean - pi_loss_std,
-                    y2=pi_loss_mean + pi_loss_std,
-                    color='orange', alpha=0.2)
-    plt.ylabel('Policy Loss')
-    plt.xlabel('Training Steps')
-    plt.title('Policy Loss (Smoothed)')
-    plt.grid(True)
-    plt.legend()
-
-    # Episodic return subplot (no smoothing here, just raw)
-    plt.subplot(3, 1, 3)
-    plt.plot(episode_rewards, label='Episodic Return', color='green')
-    plt.ylabel('Return')
-    plt.xlabel('Episodes')
-    plt.title('Episodic Return')
-    plt.grid(True)
-    plt.legend()
-
-    plt.tight_layout()
-    plt.show()
-
+    train_losses.to_csv('Train_losses.csv')
 
