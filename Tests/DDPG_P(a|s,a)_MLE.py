@@ -17,7 +17,7 @@ from MiscFunctions.DataProcessing import *
 from MiscFunctions.SimulationData import get_state
 
 
-FILE_PATH = 'Data/data_1000.csv'
+FILE_PATH = 'Data/CSVs/data_1000.csv'
 NB_CLUSTERS = 50
 NB_TRIALS = 100
 NB_TRAINING_CYCLES = 10
@@ -144,10 +144,10 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('Data/P(a|s,a)NoiseTraining_MLE.csv')
+    train_losses.to_csv('Data/CSVs/P(a|s,a)NoiseTraining_MLE.csv')
 
     if PLOTTING:
-        pasa_ddpg = DDPGMetrics(file_path='Data/P(a|s,a)NoiseTraining_MLE.csv', show=True, title='P(a[k]|s[k],a[k-1]) Noise')
+        pasa_ddpg = DDPGMetrics(file_path='Data/CSVs/P(a|s,a)NoiseTraining_MLE.csv', show=True, title='P(a[k]|s[k],a[k-1]) Noise')
         pasa_ddpg.plot_losses()
 
 

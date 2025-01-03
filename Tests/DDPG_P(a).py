@@ -18,7 +18,7 @@ device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
 
 PLOTTING = False
-FILE_PATH = 'Data/data_1000.csv'
+FILE_PATH = 'Data/CSVs/data_1000.csv'
 NB_TRIALS = 100
 NB_TRAINING_CYCLES = 10
 KERNEL_LIST = ['gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine']
@@ -117,10 +117,10 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('Data/P(a)NoiseTraining.csv')
+    train_losses.to_csv('Data/CSVs/P(a)NoiseTraining.csv')
 
     if PLOTTING:
-        pa_ddpg = DDPGMetrics(file_path='Data/P(a)NoiseTraining.csv', show=True, title='P(a) Noise', smooth=True)
+        pa_ddpg = DDPGMetrics(file_path='Data/CSVs/P(a)NoiseTraining.csv', show=True, title='P(a) Noise', smooth=True)
         pa_ddpg.plot_losses()
 
 

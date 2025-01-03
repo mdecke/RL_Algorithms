@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from MiscFunctions.DataProcessing import *
 from MiscFunctions.Plotting import *
 
-FILE_PATH = 'Data/data_1000.csv' 
+FILE_PATH = 'Data/CSVs/data_1000.csv' 
 NB_CLUSTERS = 50
 NB_TRIALS = 100
 

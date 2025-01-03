@@ -114,7 +114,7 @@ if __name__ == "__main__":
             state = next_state.copy() # use .copy() for arrays because of the shared memory issues
         
     env.close()
-    df.to_csv(f'Data/data_{n_episodes}.csv', index=False)
+    df.to_csv(f'Data/CSVs/data_{n_episodes}.csv', index=False)
     # Plot state.
     print('Plotting...')
     fig, ax = plt.subplots(3, 1, sharex=True)
