@@ -17,11 +17,12 @@ from MiscFunctions.DataProcessing import *
 from MiscFunctions.SimulationData import get_state
 
 
-FILE_PATH = 'Data/data.csv'
+FILE_PATH = 'Data/data_1000.csv'
 NB_CLUSTERS = 50
 NB_TRIALS = 100
 NB_TRAINING_CYCLES = 10
 DATA_TYPE = 'state_action' 
+PLOTTING = False
 training_steps = 15000
 warm_up = 2000
 discount_gamma = 0.99
@@ -44,7 +45,6 @@ if __name__ == '__main__':
 
     env = gym.make('Pendulum-v1')
     state_dim = env.observation_space.shape[0]
-    print(state_dim)
     action_dim = env.action_space.shape[0]
     
     policy_losses = pd.DataFrame()
@@ -84,13 +84,11 @@ if __name__ == '__main__':
             expected_action = fitter.sample_cluster(obs_cluster,action_dim)  
             
             if t < warm_up:
-                noisy_action = expected_action
-                warm_up_actions.append(noisy_action)
+                noisy_action = env.action_space.sample()
             else:
                 action = policy.forward(obs)
                 cpu_action = action.detach().cpu().numpy()
-                noise = 0.5*abs(cpu_action - expected_action.item())*np.sign(cpu_action - expected_action.item())
-                noisy_action = cpu_action + noise
+                noisy_action = cpu_action + expected_action
   
             noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
             obs_, reward, termination, truncation, _ = env.step(noisy_action)
@@ -132,9 +130,10 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('PrevActionLoss.csv')
+    train_losses.to_csv('Data/P(a|s,a)NoiseTraining.csv')
 
-    ddpg_plotter = DDPGMetrics(file_path='PrevActionLoss.csv')
-    ddpg_plotter.plot_losses()
+    if PLOTTING:
+        pasa_ddpg = DDPGMetrics(file_path='Data/P(a|s,a)NoiseTraining.csv', show=True, title='P(a[k]|s[k],a[k-1]) Noise')
+        pasa_ddpg.plot_losses()
 
 

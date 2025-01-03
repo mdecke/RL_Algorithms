@@ -15,6 +15,8 @@ from MiscFunctions.Plotting import *
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
 
+PLOTTING = False
+
 if __name__ == '__main__':
     np.random.seed(42)
 
@@ -107,5 +109,9 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('Train_losses.csv')
+    train_losses.to_csv('Data/OHNoiseTraining.csv')
 
+    if PLOTTING:
+        oh_ddpg = DDPGMetrics(file_path='Data/OHNoiseTraining.csv', show=True, title='n ~ OH() Noise')
+        oh_ddpg.plot_losses()
+    

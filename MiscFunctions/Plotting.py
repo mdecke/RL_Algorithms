@@ -1,10 +1,12 @@
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+from sklearn.neighbors import KernelDensity
+from statsmodels.distributions.empirical_distribution import ECDF
 
 
 class DDPGMetrics:
-    def __init__(self, data=None, file_path=None, show=True, title=None):
+    def __init__(self, data=None, file_path=None, show=True, title=None, smooth=False):
         if file_path is not None:
             self.df = pd.read_csv(file_path)
         elif type(data) is not None:
@@ -12,6 +14,8 @@ class DDPGMetrics:
 
         self.show = show
         self.title = title
+        self.smooth = smooth 
+
     def split_losses(self):
         self.policy_losses = self.df[self.df['label'] == 'policy'].iloc[:,1:-1]
         self.value_losses = self.df[self.df['label'] == 'value'].iloc[:,1:-1]
@@ -28,21 +32,48 @@ class DDPGMetrics:
         self.returns['min'] = self.returns.min(axis=1)
         self.returns['max'] = self.returns.max(axis=1)
         self.returns['mean'] = self.returns.mean(axis=1)
-    
+
+    def smooth_data(self,data, window=50):
+            return np.convolve(data, np.ones(window)/window, mode='same')
+          
     def plot_losses(self):
         self.split_losses()
         trainings_steps = np.linspace(0,len(self.policy_losses['mean']), len(self.policy_losses['mean']))
         n_episodes = np.linspace(0,len(self.returns['mean']), len(self.returns['mean']))
         if self.show:
             plt.figure(figsize=(10, 8))
-        if self.title == "P(a[k]) Noise":
+        
+        if self.title == "P(a) Noise":
             color = 'blue'
         elif self.title == "P(a[k]|s[k],a[k-1]) Noise":
             color = 'orange'
         elif self.title == "P(a[k]|s[k]) Noise":
             color = 'green'
-        elif self.title == "n ~ OH() Noise":
+        elif self.title == "OH Noise":
             color = 'red'
+        elif self.title == "P(a[k]|s[k],a[k-1])MLE Noise":
+            color = 'purple'
+        elif self.title == "P(a[k]|s[k])MLE Noise":
+            color = 'pink'
+        else:
+            raise ValueError("Invalid title. Must be 'P(a[k]) Noise', 'P(a[k]|s[k],a[k-1]) Noise', 'P(a[k]|s[k]) Noise' or 'n ~ OH() Noise'")
+        
+        if self.smooth:
+            window = 50  # You can adjust this value
+            self.policy_losses['mean'] = self.smooth_data(self.policy_losses['mean'].to_numpy(), window)
+            self.policy_losses['min'] = self.smooth_data(self.policy_losses['min'].to_numpy(), window)
+            self.policy_losses['max'] = self.smooth_data(self.policy_losses['max'].to_numpy(), window)
+            self.value_losses['mean'] = self.smooth_data(self.value_losses['mean'].to_numpy(), window)
+            self.value_losses['min'] = self.smooth_data(self.value_losses['min'].to_numpy(), window)
+            self.value_losses['max'] = self.smooth_data(self.value_losses['max'].to_numpy(), window)
+            self.returns['mean'] = self.smooth_data(self.returns['mean'].to_numpy(), window)
+            self.returns['min'] = self.smooth_data(self.returns['min'].to_numpy(), window)
+            self.returns['max'] = self.smooth_data(self.returns['max'].to_numpy(), window)
+            
+            # Adjust training steps and episodes arrays to match the new length
+            trainings_steps = np.linspace(0, len(self.policy_losses['mean']), len(self.policy_losses['mean']))
+            n_episodes = np.linspace(0, len(self.returns['mean']), len(self.returns['mean']))
+
         # Q-function loss subplot
         plt.subplot(3, 1, 1)
         plt.plot(trainings_steps, self.value_losses['mean'], label=f'{self.title} Mean Q-value Loss', color=color)
@@ -52,7 +83,7 @@ class DDPGMetrics:
                         color=color, alpha=0.2)
         plt.ylabel('Value Loss')
         plt.xlabel('Training Steps')
-        plt.title('Q-function Loss')
+        plt.title(f'Q-function Loss (smoothed = {self.smooth})')
         plt.grid(True)
         plt.legend()
 
@@ -65,7 +96,7 @@ class DDPGMetrics:
                         color=color, alpha=0.2)
         plt.ylabel('Policy Loss')
         plt.xlabel('Training Steps')
-        plt.title('Policy Loss')
+        plt.title(f'Policy Loss (smoothed = {self.smooth})')
         plt.grid(True)
         plt.legend()
 
@@ -78,7 +109,7 @@ class DDPGMetrics:
                         color=color, alpha=0.2)
         plt.ylabel('Return')
         plt.xlabel('Episodes')
-        plt.title('Episodic Return')
+        plt.title(f'Episodic Return (smoothed = {self.smooth})')
         plt.grid(True)
         plt.legend()
         
@@ -96,7 +127,7 @@ class ClusterPlotting:
         elif type(data) is not None:
             self.df = data
 
-    def plot_clusters(self, data_type: str):
+    def plot_clusters(self, data_type: str, save=False):
         states = self.df['state'].to_list()
         states_np = np.array([np.fromstring(state.strip('[]'), sep=',') for state in states])
         if data_type == "polar":
@@ -130,9 +161,12 @@ class ClusterPlotting:
         
         plt.colorbar(scatter, label='Cluster Label')
         plt.grid(True)
+        if save:
+            plt.savefig(f'Data/Plots/Clusters.svg')
+        plt.tight_layout()
         plt.show()
     
-    def plot_fitted_cluster_gmm(self, fitted_models:dict):
+    def plot_fitted_cluster_gmm(self, fitted_models:dict, save=False):
         nb_clusters = self.df['cluster_label'].max() + 1
         subplots_per_figure = 10
         n_figures = (nb_clusters + subplots_per_figure - 1) // subplots_per_figure
@@ -187,6 +221,58 @@ class ClusterPlotting:
             # Hide empty subplots if any
             for j in range(ax_idx + 1, len(axes)):
                 axes[j].set_visible(False)
-
+            if save:
+                plt.savefig(f'Data/Plots/GMMClusters_{fig_num}.svg')
             plt.tight_layout()
             plt.show()
+
+
+class KDEPlotting:
+    def __init__(self, actions, nb_bins, kde_fitter):
+        self.actions = actions
+        self.nb_bins = nb_bins
+        self.action_space = np.linspace(min(self.actions), max(self.actions), len(self.actions))
+        self.kde = kde_fitter.kde
+        self.kde.fit(self.actions[:, None])
+        self.pdf = np.exp(self.kde.score_samples(self.action_space[:, None]))
+        self.cdf = np.cumsum(self.pdf) * (self.action_space[1] - self.action_space[0])
+
+    def plot_action_dist(self):
+        plt.figure(figsize=(10, 6))
+        plt.hist(self.actions, bins=self.nb_bins, density=True, alpha=0.6, color='red', label='Histogram')
+        plt.grid()
+        plt.xlabel('Torque [N/m]')
+        plt.ylabel('Density')
+        plt.title('Action distribution over action space')
+        # plt.savefig(f'InvertedPendulum/Data/Plots/P(a)_Histogram_{datetime.now().date()}')
+        plt.show()
+    
+    def plot_hist_vs_fitted_pdf(self):
+        params = self.kde.get_params()
+        kernel = params['kernel']
+        bandwidth = params['bandwidth']
+
+        plt.figure(figsize=(10, 6))
+        plt.fill_between(self.action_space, self.pdf, alpha=0.3, color='green',label=f"KDE: {kernel} (bw={bandwidth:.2f})")
+        plt.hist(self.actions, bins=self.nb_bins, density=True, alpha=0.6, color='red', label='Histogram')
+        plt.grid()
+        plt.xlabel('Action Values')
+        plt.ylabel('Density')
+        plt.title(f'Best KDE Fit: Kernel={kernel}, Bandwidth={bandwidth:.2f}')
+        plt.legend()
+        # plt.savefig(f"InvertedPendulum/Data/Plots/P(a)_BestDensityFit_{datetime.now().date()}")
+        plt.show()
+    
+    def plot_cdf_vs_ECDF(self):
+        ecdf = ECDF(self.actions)
+        y_vals = ecdf(self.action_space)
+
+        plt.plot(self.action_space, y_vals,'r-',label='ECDF')
+        plt.plot(self.action_space, self.cdf, 'b-', label='KDE cdf')
+        plt.xlabel('torque')
+        plt.ylabel('cumulative probability')
+        plt.grid()
+        plt.legend()
+        plt.title('Comparison of KDE cdf and Empirical CDF')
+        # plt.savefig(f'InvertedPendulum/Data/Plots/P(a)_CDFComp_{datetime.now().date()}')
+        plt.show()

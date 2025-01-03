@@ -78,7 +78,7 @@ if __name__ == "__main__":
     energy_controller = EnergyShapingController(kp=0.3, **pendulum_params)
     lqr_controller = LQRController(g=9.81, m=env.unwrapped.m, l=env.unwrapped.l, b=0.1)
 
-    n_episodes = 300
+    n_episodes = 1000
     assert n_episodes >= 10 # Somehow, because of plotting, a smaller version crashes
     switch_threshold = 1.7
     done_threshold = 0.01
@@ -114,7 +114,7 @@ if __name__ == "__main__":
             state = next_state.copy() # use .copy() for arrays because of the shared memory issues
         
     env.close()
-    df.to_csv('Data/data.csv', index=False)
+    df.to_csv(f'Data/data_{n_episodes}.csv', index=False)
     # Plot state.
     print('Plotting...')
     fig, ax = plt.subplots(3, 1, sharex=True)
@@ -135,5 +135,5 @@ if __name__ == "__main__":
         ax[2].set_ylabel("Actions [Nm]")
 
     plt.tight_layout()
-    # plt.savefig('InvertedPendulum/Data/Plots/EnergyShapingControl.png')
+    plt.savefig(f'Data/Plots/ModelBasedControlData_{n_episodes}Episodes.svg')
     plt.show()

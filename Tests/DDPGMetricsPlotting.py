@@ -1,25 +1,32 @@
 import os
+import sys
 import matplotlib.pyplot as plt
 
-import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Algorithms.DDPG import *
 from MiscFunctions.Plotting import *
 
 plt.figure(figsize=(15, 8))
-action_dist_noise = DDPGMetrics(file_path='Action_dist_train_losses.csv', show=False, title='P(a[k]) Noise')
-action_dist_noise.plot_losses()
 
-prev_action_ddpg = DDPGMetrics(file_path='PrevActionLoss.csv', show=False, title='P(a[k]|s[k],a[k-1]) Noise')
-prev_action_ddpg.plot_losses()
+# oh_ddpg = DDPGMetrics(file_path='Data/OHNoiseTraining.csv', show=False, title='OH Noise', smooth=True)
+# oh_ddpg.plot_losses()
 
-state_action_ddpg = DDPGMetrics(file_path='StateActionLosses.csv', show=False, title='P(a[k]|s[k]) Noise')
-state_action_ddpg.plot_losses()
+# pa_ddpg = DDPGMetrics(file_path='Data/P(a)NoiseTraining.csv', show=False, title='P(a) Noise', smooth=True)
+# pa_ddpg.plot_losses()
 
-oh_ddpg = DDPGMetrics(file_path='Train_losses.csv', show=False, title='n ~ OH() Noise')
-oh_ddpg.plot_losses()
+# pas_ddpg = DDPGMetrics(file_path='Data/P(a|s)NoiseTraining.csv', show=False, title='P(a[k]|s[k]) Noise', smooth=True)
+# pas_ddpg.plot_losses()
+
+# pasa_ddpg = DDPGMetrics(file_path='Data/P(a|s,a)NoiseTraining.csv', show=False, title='P(a[k]|s[k],a[k-1]) Noise', smooth=True)
+# pasa_ddpg.plot_losses()
+
+pas_MLE_ddpg = DDPGMetrics(file_path='Data/P(a|s)NoiseTraining_MLE.csv', show=False, title='P(a[k]|s[k])MLE Noise', smooth=True)
+pas_MLE_ddpg.plot_losses()
+
+pasa_MLE_ddpg = DDPGMetrics(file_path='Data/P(a|s,a)NoiseTraining_MLE.csv', show=False, title='P(a[k]|s[k],a[k-1])MLE Noise', smooth=True)
+pasa_MLE_ddpg.plot_losses()
 
 plt.tight_layout()
+plt.savefig('Data/MLETrainingComparison.svg')
 plt.show()
 
 

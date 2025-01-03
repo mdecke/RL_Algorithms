@@ -10,19 +10,28 @@ import matplotlib.pyplot as plt
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Algorithms.DDPG import *
+from MiscFunctions.DataProcessing import *
+from MiscFunctions.Plotting import *
 
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
 
+PLOTTING = False
+FILE_PATH = 'Data/data_1000.csv'
+NB_TRIALS = 100
+NB_TRAINING_CYCLES = 10
+KERNEL_LIST = ['gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine']
+
 if __name__ == '__main__':
     np.random.seed(42)
     
-    print('... loading P(a) ...')
-    root_path = "/Users/mathieudecker/University/CalTech/Code/InvertedPendulum/Data/Files"
-    model_path = os.path.join(root_path,'P(a)_KDE.pkl')
-    action_dist = joblib.load(model_path)
-    
+    print('... fitting P(a) ...')
+    kde_fitter = FitKDE(file_path=FILE_PATH, nb_bins=30)
+    kde_fitter.fit_action_dist(kernels=KERNEL_LIST)
+    kde_fitter.save_best_model()
+    print('... P(a) fitted ... \n')
+
     env = gym.make('Pendulum-v1')
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -64,12 +73,11 @@ if __name__ == '__main__':
             obs = torch.tensor(obs).to(device=device)
 
             if t <= warm_up:
-                noisy_action = action_dist.sample(action_dim).squeeze()
-                warm_up_actions.append(noisy_action)
+                noisy_action = env.action_space.sample()   
             else:
                 action = policy.forward(obs)
                 cpu_action = action.detach().cpu().numpy()
-                expected_action = action_dist.sample(action_dim).squeeze()
+                expected_action = kde_fitter.kde.sample(action_dim).squeeze()
                 noisy_action = cpu_action + expected_action
                 
             noisy_action = np.clip(noisy_action, env.action_space.low, env.action_space.high)
@@ -109,7 +117,10 @@ if __name__ == '__main__':
     training_returns['label'] = 'returns'
 
     train_losses = pd.concat([policy_losses,value_losses, training_returns], ignore_index=True)
-    train_losses.to_csv('Action_dist_train_losses.csv')  
-    
+    train_losses.to_csv('Data/P(a)NoiseTraining.csv')
+
+    if PLOTTING:
+        pa_ddpg = DDPGMetrics(file_path='Data/P(a)NoiseTraining.csv', show=True, title='P(a) Noise', smooth=True)
+        pa_ddpg.plot_losses()
 
 

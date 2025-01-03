@@ -6,8 +6,12 @@ PrevActionLoss.csv
 StateActionLosses.csv
 testloss.csv
 Train_losses.csv
+.vscode
 
 #Folders to ignore:
 Algorithms/__pycache__
 MiscFunctions/__pycache__
 Data
+
+#Exceptions:
+!Data/Plots
