@@ -81,3 +81,9 @@ This repo is a reinforcement learning project focusing on solving the classic pe
    ```
    These plots will be saved in the Data folder, in the Plots sub folder. 
    
+---
+
+## References
+
+1. Brockman, G., Cheung, V., Pettersson, L., Schneider, J., Schulman, J., Tang, J., & Zaremba, W. (2016). **OpenAI Gym**. *arXiv preprint arXiv:1606.01540*. [Link to paper](https://arxiv.org/abs/1606.01540)
+2. Lillicrap, T. P., Hunt, J. J., Pritzel, A., Heess, N., Erez, T., Tassa, Y., Silver, D., & Wierstra, D. (2019). **Continuous control with deep reinforcement learning**. *arXiv preprint arXiv:1509.02971*. [Link to paper](https://arxiv.org/abs/1509.02971)
