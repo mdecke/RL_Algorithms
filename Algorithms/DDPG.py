@@ -1,37 +1,35 @@
 import numpy as np
-import pandas as pd
 import gymnasium as gym
+
 
 import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
 import torch.nn.functional as functional
-
-from sklearn.cluster import KMeans
+from torch.distributions import Normal
 
 device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 print(f"Using device: {device}")
 
-class OUNoise:
-    def __init__(self, action_dim, mu=0.0, theta=0.15, sigma=0.2, sigma_min = 0.01, sigma_decay = 0.9995):
-        self.action_dim = action_dim
-        self.mu = mu
+class OrnsteinUhlenbeckNoise:
+    def __init__(self,theta: float,sigma: float,base_scale: float,mean: float = 0,std: float = 1) -> None:
+        super().__init__()
+        self.state = 0
         self.theta = theta
         self.sigma = sigma
-        self.sigma_min = sigma_min
-        self.sigma_decay = sigma_decay
-        self.state = np.ones(self.action_dim) * self.mu
-    
-    def reset(self):
-        self.state = np.ones(self.action_dim) * self.mu
-    
-    def sample(self):
-        dx = self.theta * (self.mu - self.state) + self.sigma * np.random.randn(self.action_dim)
-        self.state += dx
-        self.sigma = max(self.sigma_min, self.sigma * self.sigma_decay)
-        return self.state
+        self.base_scale = base_scale
 
+        self.distribution = Normal(loc=torch.tensor(mean, dtype=torch.float32),
+                                   scale=torch.tensor(std, dtype=torch.float32))
+
+    def sample(self, size:torch.Size = torch.Size([1,1])) -> torch.Tensor:
+        if hasattr(self.state, "shape") and self.state.shape != torch.Size(size):
+            self.state = 0
+        self.state += -self.state * self.theta + self.sigma * self.distribution.sample(size)
+
+        return self.base_scale * self.state
+    
 
 class DDPGMemory:
     def __init__(self, buffer_length:int):
@@ -42,8 +40,8 @@ class DDPGMemory:
         self.dones = []
         self.memory_buffer_length = buffer_length
     
-    def add_sample(self, state:torch.Tensor, action:torch.Tensor,
-                   reward:torch.Tensor, next_state:torch.Tensor, done:torch.Tensor):
+    def add_sample(self, state:torch.Tensor, action:torch.Tensor, reward:torch.Tensor,
+                   next_state:torch.Tensor, done:torch.Tensor):
         
         if len(self.states) == self.memory_buffer_length:
             self.states.pop(0)
@@ -60,7 +58,8 @@ class DDPGMemory:
     
     def sample_memory(self, batch_size):
         indices = random.sample(range(len(self.states)), min(batch_size, len(self.states)))
-        batch = [(self.states[i], self.actions[i], self.rewards[i], self.next_states[i], self.dones[i]) for i in indices]
+        batch = [(self.states[i], self.actions[i], self.rewards[i], self.next_states[i], 
+                  self.dones[i]) for i in indices]
         return zip(*batch)
     
 
@@ -81,8 +80,6 @@ class Policy(nn.Module):
         return functional.normalize(policy_input, p=2, dim=-1)
         
     def forward(self, inputs,preprocess=False):
-        # if preprocess:
-        #     inputs = self.preprocess(inputs)
         x = functional.relu(self.linear_layer_1(inputs))
         x = functional.relu(self.linear_layer_2(x))
         
@@ -106,8 +103,6 @@ class Value(nn.Module):
         return functional.normalize(value_input, p=2, dim=-1)
     
     def forward(self, inputs, preprocess=False):
-        # if preprocess:
-        #     inputs = self.preprocess(inputs)
         x = functional.relu(self.linear_layer_1(inputs))
         x = functional.relu(self.linear_layer_2(x))
         return self.linear_layer_3(x).squeeze()
@@ -137,7 +132,7 @@ class DDPG:
     def train(self,memory_buffer:DDPGMemory, train_iteration:int, batch_size:int, epochs:int):
         for epoch in range(epochs):
             # sample a batch from memory
-            sampled_states, sampled_actions, sampled_rewards, sampled_next_states, sampled_dones = memory_buffer.sample_memory(batch_size)
+            sampled_states, sampled_actions, sampled_rewards, sampled_next_states, sampled_dones = memory_buffer.sample_memory(batch_size) #, sampled_embeddings, sampled_next_embed
 
             #batch to device
             sampled_states = torch.stack(sampled_states).to(device)
@@ -145,6 +140,8 @@ class DDPG:
             sampled_rewards = torch.stack(sampled_rewards).to(device)
             sampled_next_states = torch.stack(sampled_next_states).to(device)
             sampled_dones = torch.stack(sampled_dones).to(device)
+            # sampled_embeddings = torch.stack(sampled_embeddings).to(device)
+            # sampled_next_embed = torch.stack(sampled_next_embed).to(device)
             
             # compute target values
             with torch.no_grad():
@@ -183,17 +180,6 @@ class DDPG:
             self.soft_update(self.pi_t, self.pi, tau=0.005)
             self.soft_update(self.q_t, self.q, tau=0.005)
 
-            # record data
-            # self.track_data("Loss / Policy loss", policy_loss.item())
-            # self.track_data("Loss / Critic loss", critic_loss.item())
-
-            # self.track_data("Q-network / Q1 (max)", torch.max(critic_values).item())
-            # self.track_data("Q-network / Q1 (min)", torch.min(critic_values).item())
-            # self.track_data("Q-network / Q1 (mean)", torch.mean(critic_values).item())
-
-            # self.track_data("Target / Target (max)", torch.max(y).item())
-            # self.track_data("Target / Target (min)", torch.min(y).item())
-            # self.track_data("Target / Target (mean)", torch.mean(y).item())
         
         self.pi_loss.append(policy_loss.detach().cpu().numpy().item())
         self.q_loss.append(critic_loss.detach().cpu().numpy().item())
