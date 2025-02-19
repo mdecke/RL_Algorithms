@@ -7,6 +7,7 @@ StateActionLosses.csv
 testloss.csv
 Train_losses.csv
 .vscode
+.DS_Store
 
 #Folders to ignore:
 Algorithms/__pycache__
@@ -14,5 +15,6 @@ MiscFunctions/__pycache__
 Data/Models
 Data/CSVs
 Data
+
 
 
