@@ -6,7 +6,7 @@ from statsmodels.distributions.empirical_distribution import ECDF
 
 
 class DDPGMetrics:
-    def __init__(self, data=None, file_path=None, show=True, title=None, smooth=False):
+    def __init__(self, data:pd.DataFrame=None, file_path:str=None, show:bool=True, title:str=None, smooth:int=None):
         if file_path is not None:
             self.df = pd.read_csv(file_path)
         elif type(data) is not None:
@@ -17,21 +17,30 @@ class DDPGMetrics:
         self.smooth = smooth 
 
     def split_losses(self):
-        self.policy_losses = self.df[self.df['label'] == 'policy'].iloc[:,1:-1]
-        self.value_losses = self.df[self.df['label'] == 'value'].iloc[:,1:-1]
-        self.returns = self.df[self.df['label'] == 'returns'].iloc[:,1:-1]
+        cycles = self.df['cycle'].unique()
+        self.policy_losses = pd.DataFrame()
+        self.q_losses = pd.DataFrame()
+        self.episodic_returns = pd.DataFrame()
+        for cycle in cycles:
+            cycle_policy_loss = self.df[self.df['cycle'] == cycle]['policy_loss'].reset_index(drop=True)
+            cycle_q_loss = self.df[self.df['cycle'] == cycle]['q_loss'].reset_index(drop=True)
+            cycle_returns = self.df[self.df['cycle'] == cycle]['return'].dropna().reset_index(drop=True)
+
+            self.policy_losses[f'cycle {cycle}'] = cycle_policy_loss
+            self.q_losses[f'cycle {cycle}'] = cycle_q_loss
+            self.episodic_returns[f'cycle {cycle}'] = cycle_returns
 
         self.policy_losses['min'] = self.policy_losses.min(axis=1)
         self.policy_losses['max'] = self.policy_losses.max(axis=1)
         self.policy_losses['mean'] = self.policy_losses.mean(axis=1)
 
-        self.value_losses['min'] = self.value_losses.min(axis=1)
-        self.value_losses['max'] = self.value_losses.max(axis=1)
-        self.value_losses['mean'] = self.value_losses.mean(axis=1)
+        self.q_losses['min'] = self.q_losses.min(axis=1)
+        self.q_losses['max'] = self.q_losses.max(axis=1)
+        self.q_losses['mean'] = self.q_losses.mean(axis=1)
 
-        self.returns['min'] = self.returns.min(axis=1)
-        self.returns['max'] = self.returns.max(axis=1)
-        self.returns['mean'] = self.returns.mean(axis=1)
+        self.episodic_returns['min'] = self.episodic_returns.min(axis=1)
+        self.episodic_returns['max'] = self.episodic_returns.max(axis=1)
+        self.episodic_returns['mean'] = self.episodic_returns.mean(axis=1)
 
     def smooth_data(self,data, window=50):
             return np.convolve(data, np.ones(window)/window, mode='same')
@@ -39,80 +48,61 @@ class DDPGMetrics:
     def plot_losses(self):
         self.split_losses()
         trainings_steps = np.linspace(0,len(self.policy_losses['mean']), len(self.policy_losses['mean']))
-        n_episodes = np.linspace(0,len(self.returns['mean']), len(self.returns['mean']))
+        n_episodes = np.linspace(0,len(self.episodic_returns['mean']), len(self.episodic_returns['mean']))
         if self.show:
-            plt.figure(figsize=(10, 8))
-        
-        if self.title == "P(a) Noise":
-            color = 'blue'
-        elif self.title == "P(a[k]|s[k],a[k-1]) Noise":
-            color = 'orange'
-        elif self.title == "P(a[k]|s[k]) Noise":
-            color = 'green'
-        elif self.title == "OH Noise":
-            color = 'red'
-        elif self.title == "P(a[k]|s[k],a[k-1])MLE Noise":
-            color = 'purple'
-        elif self.title == "P(a[k]|s[k])MLE Noise":
-            color = 'pink'
-        else:
-            raise ValueError("Invalid title. Must be 'P(a[k]) Noise', 'P(a[k]|s[k],a[k-1]) Noise', 'P(a[k]|s[k]) Noise' or 'n ~ OH() Noise'")
-        
+            fig,ax = plt.subplots(3, 1, sharex=False, figsize=(10, 8))
+            
+
         if self.smooth:
-            window = 50  # You can adjust this value
+            window = self.smooth  # You can adjust this value
             self.policy_losses['mean'] = self.smooth_data(self.policy_losses['mean'].to_numpy(), window)
             self.policy_losses['min'] = self.smooth_data(self.policy_losses['min'].to_numpy(), window)
             self.policy_losses['max'] = self.smooth_data(self.policy_losses['max'].to_numpy(), window)
-            self.value_losses['mean'] = self.smooth_data(self.value_losses['mean'].to_numpy(), window)
-            self.value_losses['min'] = self.smooth_data(self.value_losses['min'].to_numpy(), window)
-            self.value_losses['max'] = self.smooth_data(self.value_losses['max'].to_numpy(), window)
-            self.returns['mean'] = self.smooth_data(self.returns['mean'].to_numpy(), window)
-            self.returns['min'] = self.smooth_data(self.returns['min'].to_numpy(), window)
-            self.returns['max'] = self.smooth_data(self.returns['max'].to_numpy(), window)
+            self.q_losses['mean'] = self.smooth_data(self.q_losses['mean'].to_numpy(), window)
+            self.q_losses['min'] = self.smooth_data(self.q_losses['min'].to_numpy(), window)
+            self.q_losses['max'] = self.smooth_data(self.q_losses['max'].to_numpy(), window)
+            self.episodic_returns['mean'] = self.smooth_data(self.episodic_returns['mean'].to_numpy(), window)
+            self.episodic_returns['min'] = self.smooth_data(self.episodic_returns['min'].to_numpy(), window)
+            self.episodic_returns['max'] = self.smooth_data(self.episodic_returns['max'].to_numpy(), window)
             
             # Adjust training steps and episodes arrays to match the new length
             trainings_steps = np.linspace(0, len(self.policy_losses['mean']), len(self.policy_losses['mean']))
-            n_episodes = np.linspace(0, len(self.returns['mean']), len(self.returns['mean']))
+            n_episodes = np.linspace(0, len(self.episodic_returns['mean']), len(self.episodic_returns['mean']))
 
         # Q-function loss subplot
-        plt.subplot(3, 1, 1)
-        plt.plot(trainings_steps, self.value_losses['mean'], label=f'{self.title} Mean Q-value Loss', color=color)
-        plt.fill_between(x=range(len(trainings_steps)),
-                        y1=self.value_losses['min'],
-                        y2=self.value_losses['max'],
-                        color=color, alpha=0.2)
-        plt.ylabel('Value Loss')
-        plt.xlabel('Training Steps')
-        plt.title(f'Q-function Loss (smoothed = {self.smooth})')
-        plt.grid(True)
-        plt.legend()
+        ax[0].plot(trainings_steps, self.q_losses['mean'], label=f'{self.title} Mean Q-value Loss')
+        ax[0].fill_between(x=range(len(trainings_steps)),
+                        y1=self.q_losses['min'],
+                        y2=self.q_losses['max'], alpha=0.2)
+        ax[0].set_ylabel('Value Loss')
+        ax[0].set_xlabel('Training Steps')
+        ax[0].set_title(f'Q-function Loss (smoothed = {self.smooth})')
+        
 
         # Policy loss subplot
-        plt.subplot(3, 1, 2)
-        plt.plot(trainings_steps, self.policy_losses['mean'], label=f'{self.title} Mean Policy Loss', color=color)
-        plt.fill_between(x=range(len(trainings_steps)),
+        ax[1].plot(trainings_steps, self.policy_losses['mean'], label=f'{self.title} Mean Policy Loss')
+        ax[1].fill_between(x=range(len(trainings_steps)),
                         y1=self.policy_losses['min'],
                         y2=self.policy_losses['max'],
-                        color=color, alpha=0.2)
-        plt.ylabel('Policy Loss')
-        plt.xlabel('Training Steps')
-        plt.title(f'Policy Loss (smoothed = {self.smooth})')
-        plt.grid(True)
-        plt.legend()
+                        alpha=0.2)
+        ax[1].set_ylabel('Policy Loss')
+        ax[1].set_xlabel('Training Steps')
+        ax[1].set_title(f'Policy Loss (smoothed = {self.smooth})')
 
         # Episodic return subplot (no smoothing here, just raw)
-        plt.subplot(3, 1, 3)
-        plt.plot(n_episodes, self.returns['mean'], label=f'{self.title} Mean Episodic Return', color=color)
-        plt.fill_between(x = range(len(n_episodes)),
-                        y1=self.returns['min'],
-                        y2=self.returns['max'],
-                        color=color, alpha=0.2)
-        plt.ylabel('Return')
-        plt.xlabel('Episodes')
-        plt.title(f'Episodic Return (smoothed = {self.smooth})')
-        plt.grid(True)
-        plt.legend()
+        ax[2].plot(n_episodes, self.episodic_returns['mean'], label=f'{self.title} Mean Episodic Return')
+        ax[2].fill_between(x = range(len(n_episodes)),
+                        y1=self.episodic_returns['min'],
+                        y2=self.episodic_returns['max'],
+                        alpha=0.2)
+        ax[2].set_ylabel('Return')
+        ax[2].set_xlabel('Training Episodes')
+        ax[2].set_title(f'Episodic Return (smoothed = {self.smooth})')
         
+        for i in range(3):
+            ax[i].set_facecolor('lightgrey')
+            ax[i].grid(True)
+            ax[i].legend()
 
         if self.show:
             plt.tight_layout()
