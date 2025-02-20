@@ -14,7 +14,7 @@ from MiscFunctions.Plotting import *
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 5
+NB_TRAINING_CYCLES = 2
 NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
 PLOTTING = False
 
@@ -32,10 +32,10 @@ if __name__ == '__main__':
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     
-    action_low = torch.tensor(env.action_space.low, dtype=torch.float32, device=device)
-    action_high = torch.tensor(env.action_space.high, dtype=torch.float32, device=device)
+    action_low = env.action_space.low
+    action_high = env.action_space.high
 
-    training_steps = 20000
+    training_steps = 15000
     warm_up = 1
     discount_gamma = 0.99
     buffer_length = 15000
@@ -44,10 +44,10 @@ if __name__ == '__main__':
     list_of_all_the_data = []
 
     for cycles in range(NB_TRAINING_CYCLES):
-        
-        rng_state = np.random.get_state()
-        seed_np = rng_state[1][0]
-        seed_torch = torch.initial_seed()
+        seed_torch = np.random.randint(0, 2**32 - 1)
+        torch.manual_seed(seed_torch)
+        seed_np = np.random.randint(0, 2**32 - 1)
+        np.random.seed(seed_np)
         print(f'\nUsing seed {seed_np} for numpy and {seed_torch} for torch')
 
         behavior_policy = Policy(state_dim=state_dim, action_dim=action_dim, policy_lr=1e-3)
@@ -58,7 +58,7 @@ if __name__ == '__main__':
 
         models = [behavior_policy, behavior_q]
         for model in models:
-            init_model_weights(model)
+            init_model_weights(model, seed=seed_torch)
 
         target_policy.load_state_dict(behavior_policy.state_dict())
         target_q.load_state_dict(behavior_q.state_dict())
@@ -66,9 +66,9 @@ if __name__ == '__main__':
         
         agent = DDPG(policy_network=behavior_policy, target_policy=target_policy, env=env,
                     value_network=behavior_q, target_value_function=target_q,
-                    discount_factor=discount_gamma, total_training_time=training_steps, device=device)
+                    discount_factor=discount_gamma, total_training_time=training_steps,seed=seed_torch, device=device)
         
-        memory = DDPGMemory(buffer_length=buffer_length)
+        memory = DDPGMemory(state_dim=state_dim, action_dim=action_dim, buffer_length=buffer_length)
 
 
         obs, _ = env.reset(options={'x_init': np.pi, 'y_init': 8.0})
@@ -78,34 +78,26 @@ if __name__ == '__main__':
         for t in tqdm(range(training_steps), desc=f"Cycle {cycles+1}", unit="step"):
             with torch.no_grad():
                 if t <= warm_up:
-                    dist = torch.distributions.Uniform(low=action_low, high=action_high)
-                    clipped_action = dist.sample()
+                    clipped_action = env.action_space.sample()
                 else:
                     action = behavior_policy.forward(torch.tensor(obs, dtype=torch.float32, device=device))
                     expl_noise = noise.sample(action.shape)
-                    noisy_action = action + expl_noise
-                    clipped_action = torch.clip(noisy_action,
-                                                min=action_low,
-                                                max=action_high)
+                    noisy_action = action.cpu().numpy() + expl_noise.cpu().numpy()
+                    clipped_action = np.clip(noisy_action,
+                                                a_min=action_low,
+                                                a_max=action_high)
                 
                 obs_, reward, termination, truncation, _ = env.step(clipped_action)
                 done = termination or truncation
                 cumulative_reward += reward
                 
-                state_tensor = torch.tensor(obs,dtype=torch.float32,device=device)
-                action_tensor = clipped_action.clone()
-                reward_tensor = reward.clone()
-                next_state_tensor = torch.tensor(obs_, dtype=torch.float32, device=device)
-                done = torch.tensor(done, dtype=torch.int, device=device)
-                
-                memory.add_sample(state=state_tensor, action=action_tensor, reward=reward_tensor,
-                                next_state=next_state_tensor, done=done)
+                memory.add_sample(state=obs, action=clipped_action, reward=reward, next_state=obs_, done=done)
             
             if t>=warm_up and len(memory.states) >= batch_size:
                 agent.train(memory_buffer=memory, train_iteration=t, batch_size=batch_size,epochs=1)
             
-            if done.item():
-                episodic_returns.append(cumulative_reward.detach().cpu().numpy())
+            if done:
+                episodic_returns.append(cumulative_reward)
                 cumulative_reward = 0
                 obs, _ = env.reset(options={'x_init': np.pi, 'y_init': 8.0})
             else:
@@ -116,19 +108,16 @@ if __name__ == '__main__':
                 'cycle': cycles + 1,
                 'policy_loss': agent.pi_loss[i],
                 'q_loss': agent.q_loss[i],
-                 'return': episodic_returns[i] if i < len(episodic_returns) else np.nan,
+                'return': episodic_returns[i] if i < len(episodic_returns) else np.nan,
             })
         
         env.close()
         
     df = pd.DataFrame(list_of_all_the_data)
 
-    DATA_FOLDER = 'Data/CSVs/Metrics'
+    DATA_FOLDER = 'Data/CSVs/Metrics/tests'
     if not os.path.exists(DATA_FOLDER):
         os.makedirs(DATA_FOLDER)
-    PLOTS_FOLDER = 'Data/Plots'
-    if not os.path.exists(PLOTS_FOLDER):
-        os.makedirs(PLOTS_FOLDER)
 
     df.to_csv(f'{DATA_FOLDER}/{NOISE}.csv', index=False)
 

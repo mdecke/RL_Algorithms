@@ -1,4 +1,5 @@
 import gymnasium as gym
+import numpy as np
 
 import random
 import torch
@@ -28,36 +29,37 @@ class OrnsteinUhlenbeckNoise:
     
 
 class DDPGMemory:
-    def __init__(self, buffer_length:int):
-        self.states = []
-        self.actions = []
-        self.next_states = []
-        self.rewards = []
-        self.dones = []
+    def __init__(self, state_dim:int, action_dim:int, buffer_length:int):
         self.memory_buffer_length = buffer_length
-    
-    def add_sample(self, state:torch.Tensor, action:torch.Tensor, reward:torch.Tensor,
-                   next_state:torch.Tensor, done:torch.Tensor):
+        self.ptr = 0
+        self.size = 0
+
+        self.states = np.zeros((buffer_length, state_dim), dtype=np.float32)
+        self.actions = np.zeros((buffer_length, action_dim), dtype=np.float32)
+        self.rewards = np.zeros((buffer_length, 1), dtype=np.float32)
+        self.next_states = np.zeros((buffer_length, state_dim), dtype=np.float32)
+        self.dones = np.zeros((buffer_length, 1), dtype=np.float32)
+
+    def add_sample(self, state, action, reward, next_state, done):
+        idx = self.ptr
+        self.states[idx] = state
+        self.actions[idx] = action
+        self.rewards[idx] = reward
+        self.next_states[idx] = next_state
+        self.dones[idx] = done
         
-        if len(self.states) == self.memory_buffer_length:
-            self.states.pop(0)
-            self.actions.pop(0)
-            self.rewards.pop(0)
-            self.next_states.pop(0)
-            self.dones.pop(0)
-        
-        self.states.append(state)
-        self.actions.append(action)
-        self.rewards.append(reward)
-        self.next_states.append(next_state)
-        self.dones.append(done)
+        self.ptr = (self.ptr + 1) % self.memory_buffer_length
+        self.size = min(self.size + 1, self.memory_buffer_length)
     
     def sample_memory(self, batch_size):
-        indices = random.sample(range(len(self.states)), min(batch_size, len(self.states)))
-        batch = [(self.states[i], self.actions[i], self.rewards[i], self.next_states[i], 
-                  self.dones[i]) for i in indices]
-        return zip(*batch)
-    
+        indices = np.random.randint(0, self.size, size=batch_size)
+        return (
+            torch.tensor(self.states[indices], dtype=torch.float32),
+            torch.tensor(self.actions[indices], dtype=torch.float32),
+            torch.tensor(self.rewards[indices], dtype=torch.float32),
+            torch.tensor(self.next_states[indices], dtype=torch.float32),
+            torch.tensor(self.dones[indices], dtype=torch.float32)
+        )    
 
 class Policy(nn.Module):
     def __init__(self, state_dim, action_dim, policy_lr, device='cpu'):
@@ -97,7 +99,9 @@ class Value(nn.Module):
         x = functional.relu(self.linear_layer_2(x))
         return self.linear_layer_3(x).squeeze()
 
-def init_model_weights(model:nn.Module, mean=0.0, std=0.1):
+def init_model_weights(model:nn.Module, mean=0.0, std=0.1, seed=None):
+    if seed is not None:
+        torch.manual_seed(seed)
     for name, param in model.named_parameters():
         if param.requires_grad:
             if "weight" in name:
@@ -108,7 +112,7 @@ def init_model_weights(model:nn.Module, mean=0.0, std=0.1):
 class DDPG:
     def __init__(self, policy_network:Policy, target_policy:Policy,env:gym.Env,
                  value_network:Value, target_value_function:Value, discount_factor:float,
-                 total_training_time:int, device='cpu'):
+                 total_training_time:int, seed=None, device='cpu'):
         
         self.pi = policy_network.to(device=device)
         self.pi_t = target_policy.to(device=device)
@@ -121,6 +125,7 @@ class DDPG:
         self.q_loss = []
 
         self.device = device
+        self.seed = seed
 
     
     def soft_update(self,target_network, network, tau):
@@ -129,6 +134,7 @@ class DDPG:
 
 
     def train(self,memory_buffer:DDPGMemory, train_iteration:int, batch_size:int, epochs:int):
+
         models = [self.pi, self.pi_t, self.q, self.q_t]
         for model in models:
             model.train()
@@ -137,17 +143,14 @@ class DDPG:
             # sample a batch from memory
             sampled_states, sampled_actions, sampled_rewards, sampled_next_states, sampled_dones = memory_buffer.sample_memory(batch_size)
 
-            #batch to device
-            sampled_states = torch.stack(sampled_states).to(self.device)
-            sampled_actions = torch.stack(sampled_actions).to(self.device)
-            sampled_rewards = torch.stack(sampled_rewards).to(self.device)
-            sampled_next_states = torch.stack(sampled_next_states).to(self.device)
-            sampled_dones = torch.stack(sampled_dones).to(self.device)
-            
+            sampled_states = sampled_states.to(self.device)
+            sampled_actions = sampled_actions.to(self.device)
+            sampled_rewards = sampled_rewards.view(-1).to(self.device)
+            sampled_next_states = sampled_next_states.to(self.device)
+            sampled_dones = sampled_dones.view(-1).to(self.device)
             
             # compute target values
             with torch.no_grad():
-                
                 next_actions = self.pi_t.forward(sampled_next_states)
                 next_state_action_pairs = torch.cat([sampled_next_states, next_actions], dim=1)
                 target_q_values = self.q_t.forward(next_state_action_pairs)
@@ -156,13 +159,12 @@ class DDPG:
             # compute critic loss
             state_action_pairs = torch.cat([sampled_states, sampled_actions], dim=1)
             critic_values = self.q.forward(state_action_pairs)
-
             critic_loss = functional.mse_loss(critic_values, y)
 
             # optimization step (critic)
             self.q.optimizer.zero_grad()
             critic_loss.backward()
-            # nn.utils.clip_grad_norm_(self.q.parameters(), 5.0)
+            nn.utils.clip_grad_norm_(self.q.parameters(), 5.0)
             self.q.optimizer.step()
 
             # compute policy (actor) loss
@@ -175,7 +177,7 @@ class DDPG:
             # optimization step (policy)
             self.pi.optimizer.zero_grad()
             policy_loss.backward()
-            # nn.utils.clip_grad_norm_(self.pi.parameters(), 5.0)
+            nn.utils.clip_grad_norm_(self.pi.parameters(), 5.0)
             self.pi.optimizer.step()
 
             # update target networks
