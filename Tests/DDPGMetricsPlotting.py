@@ -5,12 +5,12 @@ import matplotlib.pyplot as plt
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from MiscFunctions.Plotting import *
 
-fig, ax = plt.subplots(3, 1, sharex=False, figsize=(10, 10))
+fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
 
-gauss_plotter = DDPGMetrics(file_path='Data/CSVs/Metrics/Gaussian.csv', show=False, title='Gaussian added Noise', smooth=20)
-gauss_plotter.plot_losses(ax=ax)
+# gauss_plotter = DDPGMetrics(file_path='Data/CSVs/Metrics/Sparse/Gaussian.csv', show=False, title='Gaussian added Noise', smooth=2)
+# gauss_plotter.plot_losses(ax=ax)
 
-ou_plotter = DDPGMetrics(file_path='Data/CSVs/Metrics/OrnsteinUhlenbeck.csv', show=False, title='Ornstein-Uhlenbeck added Noise', smooth=20)
+ou_plotter = DDPGMetrics(file_path='Data/CSVs/Metrics/tests/OrnsteinUhlenbeck.csv', show=False, title='Ornstein-Uhlenbeck added Noise', smooth=2)
 ou_plotter.plot_losses(ax=ax)
 
 plt.tight_layout()
