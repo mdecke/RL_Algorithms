@@ -45,14 +45,14 @@ class DDPGMetrics:
     def smooth_data(self,data, window=50):
             return np.convolve(data, np.ones(window)/window, mode='same')
           
-    def plot_losses(self):
+    def plot_losses(self, ax=None):
         self.split_losses()
         trainings_steps = np.linspace(0,len(self.policy_losses['mean']), len(self.policy_losses['mean']))
         n_episodes = np.linspace(0,len(self.episodic_returns['mean']), len(self.episodic_returns['mean']))
-        if self.show:
-            fig,ax = plt.subplots(3, 1, sharex=False, figsize=(10, 8))
+        
+        if ax is None:
+            fig, ax = plt.subplots(3, 1, sharex=False, figsize=(10, 8))
             
-
         if self.smooth:
             window = self.smooth  # You can adjust this value
             self.policy_losses['mean'] = self.smooth_data(self.policy_losses['mean'].to_numpy(), window)
@@ -104,7 +104,7 @@ class DDPGMetrics:
             ax[i].grid(True)
             ax[i].legend()
 
-        if self.show:
+        if self.show and ax is None:
             plt.tight_layout()
             plt.show()
         
