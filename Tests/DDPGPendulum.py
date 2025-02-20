@@ -14,13 +14,12 @@ from MiscFunctions.Plotting import *
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 1
+NB_TRAINING_CYCLES = 5
 NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
-PLOTTING = True
+PLOTTING = False
 
 
 if __name__ == '__main__':
-    np.random.seed(42)
     
     if NOISE == 'Gaussian':
         noise = Normal(loc=0, scale=0.2)
@@ -45,7 +44,11 @@ if __name__ == '__main__':
     list_of_all_the_data = []
 
     for cycles in range(NB_TRAINING_CYCLES):
-        print(f'\n... training cycle {cycles+1}/{NB_TRAINING_CYCLES} ...')
+        
+        rng_state = np.random.get_state()
+        seed_np = rng_state[1][0]
+        seed_torch = torch.initial_seed()
+        print(f'\nUsing seed {seed_np} for numpy and {seed_torch} for torch')
 
         behavior_policy = Policy(state_dim=state_dim, action_dim=action_dim, policy_lr=1e-3)
         target_policy = Policy(state_dim=state_dim, action_dim=action_dim, policy_lr=1e-3)
@@ -133,20 +136,6 @@ if __name__ == '__main__':
     
     # Plotting
     if PLOTTING:
-        fig, ax = plt.subplots(3, 1, sharex=False, figsize=(8, 8))
-        fig.suptitle(f'DDPG with {NOISE} noise', fontsize=16)
-        fig.tight_layout(pad=3.0)
-        fig.subplots_adjust(hspace=0.4)
-        ax[0].plot(df['policy_loss'], label='Policy Loss')
-        ax[0].set_ylabel('Policy Loss')
-        ax[0].legend()
-        ax[1].plot(df['q_loss'], label='Q Loss')
-        ax[1].set_ylabel('Q Loss')
-        ax[1].legend()
-        ax[2].plot(df['return'], label='Return')
-        ax[2].set_ylabel('Return')
-        ax[2].set_xlabel('Training Steps')
-        ax[2].legend()
-        plt.tight_layout()
-        plt.show()
+        print('Plotting...')
+        plotter = DDPGMetrics(data=df, show=True, title=f'{NOISE} added noise', smooth=20)
     
