@@ -164,7 +164,7 @@ class DDPG:
             # optimization step (critic)
             self.q.optimizer.zero_grad()
             critic_loss.backward()
-            nn.utils.clip_grad_norm_(self.q.parameters(), 5.0)
+            # nn.utils.clip_grad_norm_(self.q.parameters(), 5.0)
             self.q.optimizer.step()
 
             # compute policy (actor) loss
@@ -177,7 +177,7 @@ class DDPG:
             # optimization step (policy)
             self.pi.optimizer.zero_grad()
             policy_loss.backward()
-            nn.utils.clip_grad_norm_(self.pi.parameters(), 5.0)
+            # nn.utils.clip_grad_norm_(self.pi.parameters(), 5.0)
             self.pi.optimizer.step()
 
             # update target networks
