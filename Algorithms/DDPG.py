@@ -186,5 +186,3 @@ class DDPG:
         self.pi_loss.append(policy_loss.detach().cpu().numpy().item())
         self.q_loss.append(critic_loss.detach().cpu().numpy().item())
         
-        if train_iteration % 100 == 0:
-            print(f'timestep {train_iteration}/{self.T}: Policy loss = {self.pi_loss[-1]} || Value loss = {self.q_loss[-1]}')

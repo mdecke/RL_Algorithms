@@ -5,8 +5,9 @@ from typing import Optional
 from typing import Optional, SupportsFloat, Tuple
 
 import numpy as np
-from gym import spaces
+# from gym import spaces
 import gymnasium as gym
+from gymnasium import spaces
 from gymnasium.error import DependencyNotInstalled
 
 DEFAULT_X = np.pi
@@ -21,14 +22,14 @@ def verify_number_and_cast(x: SupportsFloat) -> float:
     return x
 
 
-class PendulumEnv():
+class PendulumEnv(gym.Env):
     metadata = {
         "render_modes": ["human", "rgb_array"],
         "render_fps": 30,
     }
 
-    def __init__(self, render_mode: Optional[str] = None, g=10.0, dt=0.01, torch=False):
-        self.max_speed = 8.0
+    def __init__(self, render_mode: Optional[str] = None, g=10.0, dt=0.01, max_epsiode_steps:int=200,reward:str='dense'):
+        self.max_speed = 8
         self.max_torque = 2.0
         self.dt = dt
         self.g = g
@@ -41,6 +42,10 @@ class PendulumEnv():
         self.screen = None
         self.clock = None
         self.isopen = True
+
+        self.reward_type = reward
+        self.max_ep_steps = max_epsiode_steps
+        self.counter = 0
 
         high = np.array([1.0, 1.0, self.max_speed], dtype=np.float32)
         self.action_space = spaces.Box(
@@ -58,6 +63,26 @@ class PendulumEnv():
 
         u = np.clip(u, -self.max_torque, self.max_torque)[0]
         self.last_u = u  # for rendering
+        if self.reward_type == 'dense' or self.reward_type is None:
+            costs = angle_normalize(th) ** 2 + 0.1 * thdot**2 + 0.001 * (u**2)
+        elif self.reward_type == 'sparse':
+            # costs = 10 * np.tanh(10 * angle_normalize(th)) + 0.1 * thdot**2 + 0.001 * (u**2)
+            epsilon_1 = np.deg2rad(0.1)  # 0.1 degrees
+            epsilon_2 = np.deg2rad(10.0)  # 10 degrees
+            alpha = 10.0
+    
+            abs_theta = np.abs(angle_normalize(th))
+            hinge_part = alpha * (abs_theta - epsilon_1)
+            hinge_cost = np.where(abs_theta < epsilon_1,
+                                    np.zeros_like(th),
+                                    hinge_part)
+            hinge_cost = np.where(abs_theta > epsilon_2,
+                                    20*np.ones_like(th),
+                                    hinge_cost)
+            
+            costs = (hinge_cost + 0.1 * thdot**2 + 0.001 * (u**2))
+        
+        # costs = costs.reshape(-1, 1)
 
         newthdot = thdot + (3 * g / (2 * l) * np.sin(th) + 3.0 / (m * l**2) * u) * dt
         newthdot = np.clip(newthdot, -self.max_speed, self.max_speed)
@@ -70,14 +95,14 @@ class PendulumEnv():
         if self.render_mode == "human":
             self.render()
         
-        if self.counter == 200:
+        if self.counter >=self.max_ep_steps-1:
             truncated = True
             self.counter = 0
         else:
             truncated = False
-        self.counter += 1
-    
-        return self._get_obs(), False, False, {}
+            self.counter += 1
+
+        return self._get_obs(), -costs, False, truncated, {}
 
     def reset(self, *, seed: Optional[int] = None, options: Optional[dict] = None):
         if options is None:
