@@ -2,7 +2,6 @@ import torch
 
 import numpy as np
 import pandas as pd
-import gymnasium as gym
 from tqdm import tqdm
 
 import sys, os
@@ -10,14 +9,13 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from Algorithms.CustomPendulum import PendulumEnv
 from Algorithms.DDPG import *
 from MiscFunctions.Plotting import *
-from MiscFunctions.DataProcessing import get_state
 
 
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
 NB_TRAINING_CYCLES = 1
-NOISE = 'Gaussian' # 'Gaussian' or 'OrnsteinUhlenbeck'
+NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
 PLOTTING = True
 
 
@@ -25,20 +23,20 @@ if __name__ == '__main__':
     np.random.seed(42)
     
     if NOISE == 'Gaussian':
-        noise = Normal(loc=0, scale=0.1)
+        noise = Normal(loc=0, scale=0.2)
     elif NOISE == 'OrnsteinUhlenbeck':
         noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
     else:
         raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
     
-    env = PendulumEnv(dt=0.01,max_epsiode_steps=1000, reward='sparse')
+    env = PendulumEnv(dt=0.05,max_epsiode_steps=200, reward='dense')
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     
     action_low = torch.tensor(env.action_space.low, dtype=torch.float32, device=device)
     action_high = torch.tensor(env.action_space.high, dtype=torch.float32, device=device)
 
-    training_steps = 150000
+    training_steps = 20000
     warm_up = 1
     discount_gamma = 0.99
     buffer_length = 15000
@@ -81,7 +79,7 @@ if __name__ == '__main__':
                     clipped_action = dist.sample()
                 else:
                     action = behavior_policy.forward(torch.tensor(obs, dtype=torch.float32, device=device))
-                    expl_noise = noise.sample()
+                    expl_noise = noise.sample(action.shape)
                     noisy_action = action + expl_noise
                     clipped_action = torch.clip(noisy_action,
                                                 min=action_low,
