@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-from sklearn.cluster import KMeans
 
 
 def get_state(x: np.array):
@@ -51,44 +50,3 @@ def make_input(obs:np.ndarray, prev_action:np.ndarray=None, prev_obs:np.ndarray=
             raise ValueError("Invalid input type. Must be 'state' or 'state_action' or 'prev_state_action'")
         return input_model
         
-
-class Cluster:
-    def __init__(self, file_path: str, nb_clusters: int):
-        self.dataset = pd.read_csv(file_path)
-        self.nb_clusters = nb_clusters
-        self.kmeans = None
-        self.actions_per_state = {}
-        self.fitted_models = {}
-
-    def _add_previous_action(self, return_df: bool = False):
-        self.dataset['previous_action'] = self.dataset['actions'].shift(1, fill_value=0)
-        self.dataset.groupby('episode').first().reset_index()['previous_action'] = 0
-        if return_df:
-            extended_data = self.dataset
-            return extended_data
-
-    def _extract_states(self):
-        states = self.dataset['state'].to_list()
-        states_np = np.array([np.fromstring(state.strip('[]'), sep=',') for state in states])
-        return states_np
-
-    def cluster_data(self, what_to_cluster: str = 'states'):
-        if what_to_cluster == 'states':
-            data_to_cluster = self._extract_states()
-        elif what_to_cluster == 'state_action':
-            states_np = self._extract_states()
-            self._add_previous_action()
-            prev_actions = self.dataset['previous_action'].to_numpy().reshape(-1, 1)
-            data_to_cluster = np.concatenate((states_np, prev_actions), axis=1)
-        else:
-            raise ValueError("Invalid value for 'what_to_cluster'. Must be 'states' or 'state_action'")
-            
-        self.kmeans = KMeans(n_clusters=self.nb_clusters)
-        self.kmeans.fit(data_to_cluster)
-        self.dataset['cluster_label'] = self.kmeans.labels_
-        
-        for i in range(self.nb_clusters):
-            self.actions_per_state[f'label {i}'] = self.dataset[self.dataset['cluster_label'] == i]['actions'].to_numpy()
-        return self.dataset
-
-
