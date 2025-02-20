@@ -1,6 +1,4 @@
-import numpy as np
 import gymnasium as gym
-
 
 import random
 import torch
@@ -9,8 +7,6 @@ import torch.optim as optim
 import torch.nn.functional as functional
 from torch.distributions import Normal
 
-device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
-print(f"Using device: {device}")
 
 class OrnsteinUhlenbeckNoise:
     def __init__(self,theta: float,sigma: float,base_scale: float,mean: float = 0,std: float = 1) -> None:
@@ -64,7 +60,7 @@ class DDPGMemory:
     
 
 class Policy(nn.Module):
-    def __init__(self, state_dim, action_dim, policy_lr):
+    def __init__(self, state_dim, action_dim, policy_lr, device='cpu'):
         super().__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -75,11 +71,8 @@ class Policy(nn.Module):
 
         self.optimizer = optim.Adam(self.parameters(), policy_lr)
         self.to(device)
-    
-    def preprocess(self, policy_input):
-        return functional.normalize(policy_input, p=2, dim=-1)
         
-    def forward(self, inputs,preprocess=False):
+    def forward(self, inputs):
         x = functional.relu(self.linear_layer_1(inputs))
         x = functional.relu(self.linear_layer_2(x))
         
@@ -87,7 +80,7 @@ class Policy(nn.Module):
 
 
 class Value(nn.Module):
-    def __init__(self, state_dim, action_dim, value_lr):
+    def __init__(self, state_dim, action_dim, value_lr, device='cpu'):
         super().__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
@@ -99,19 +92,23 @@ class Value(nn.Module):
         self.optimizer = optim.Adam(self.parameters(), value_lr)
         self.to(device)
     
-    def preprocess(self, value_input):
-        return functional.normalize(value_input, p=2, dim=-1)
-    
-    def forward(self, inputs, preprocess=False):
+    def forward(self, inputs):
         x = functional.relu(self.linear_layer_1(inputs))
         x = functional.relu(self.linear_layer_2(x))
         return self.linear_layer_3(x).squeeze()
 
+def init_model_weights(model:nn.Module, mean=0.0, std=0.1):
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            if "weight" in name:
+                nn.init.normal_(param, mean=mean, std=std)
+            elif "bias" in name:
+                nn.init.normal_(param, mean=mean, std=std)
 
 class DDPG:
     def __init__(self, policy_network:Policy, target_policy:Policy,env:gym.Env,
                  value_network:Value, target_value_function:Value, discount_factor:float,
-                 total_training_time:int):
+                 total_training_time:int, device='cpu'):
         
         self.pi = policy_network.to(device=device)
         self.pi_t = target_policy.to(device=device)
@@ -123,6 +120,8 @@ class DDPG:
         self.pi_loss = []
         self.q_loss = []
 
+        self.device = device
+
     
     def soft_update(self,target_network, network, tau):
         for target_param, source_param in zip(target_network.parameters(), network.parameters()):
@@ -130,18 +129,21 @@ class DDPG:
 
 
     def train(self,memory_buffer:DDPGMemory, train_iteration:int, batch_size:int, epochs:int):
+        models = [self.pi, self.pi_t, self.q, self.q_t]
+        for model in models:
+            model.train()
+        
         for epoch in range(epochs):
             # sample a batch from memory
-            sampled_states, sampled_actions, sampled_rewards, sampled_next_states, sampled_dones = memory_buffer.sample_memory(batch_size) #, sampled_embeddings, sampled_next_embed
+            sampled_states, sampled_actions, sampled_rewards, sampled_next_states, sampled_dones = memory_buffer.sample_memory(batch_size)
 
             #batch to device
-            sampled_states = torch.stack(sampled_states).to(device)
-            sampled_actions = torch.stack(sampled_actions).to(device)
-            sampled_rewards = torch.stack(sampled_rewards).to(device)
-            sampled_next_states = torch.stack(sampled_next_states).to(device)
-            sampled_dones = torch.stack(sampled_dones).to(device)
-            # sampled_embeddings = torch.stack(sampled_embeddings).to(device)
-            # sampled_next_embed = torch.stack(sampled_next_embed).to(device)
+            sampled_states = torch.stack(sampled_states).to(self.device)
+            sampled_actions = torch.stack(sampled_actions).to(self.device)
+            sampled_rewards = torch.stack(sampled_rewards).to(self.device)
+            sampled_next_states = torch.stack(sampled_next_states).to(self.device)
+            sampled_dones = torch.stack(sampled_dones).to(self.device)
+            
             
             # compute target values
             with torch.no_grad():
