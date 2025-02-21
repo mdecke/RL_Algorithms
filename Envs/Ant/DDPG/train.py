@@ -15,21 +15,20 @@ from MiscFunctions.Plotting import *
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 3
-NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
-PLOTTING = False
+NB_TRAINING_CYCLES = 1
+NOISE = 'Gaussian' # 'Gaussian' or 'OrnsteinUhlenbeck'
+PLOTTING = True
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Metrics")
 
 
 if __name__ == '__main__':
-    
-    # if NOISE == 'Gaussian':
-    #     noise = Normal(loc=0, scale=0.2)
-    # elif NOISE == 'OrnsteinUhlenbeck':
-    #     noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
-    # else:
-    #     raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
-    
-    # GRAVITY = 10.0
+
+    if NOISE == 'Gaussian':
+        noise = Normal(loc=0, scale=0.2)
+    elif NOISE == 'OrnsteinUhlenbeck':
+        noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
+    else:
+        raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
 
     env = gym.make("Ant-v4")
     obs_, _ = env.reset()
@@ -42,20 +41,20 @@ if __name__ == '__main__':
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
-    print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
+    # print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
     action_low = env.action_space.low
     action_high = env.action_space.high
-    state_low = env.observation_space.low
-    state_high = env.observation_space.high
-    print(f"Action low: {action_low}, Action high: {action_high}")
-    print(f"State low: {state_low}, State high: {state_high}")
+    # state_low = env.observation_space.low
+    # state_high = env.observation_space.high
+    # print(f"Action low: {action_low}, Action high: {action_high}")
+    # print(f"State low: {state_low}, State high: {state_high}")
 
 
-    training_steps = 15000
-    warm_up = 1
-    discount_gamma = 0.99
-    buffer_length = 15000
-    batch_size = 100
+    training_steps = int(1e6)
+    warm_up = int(1e4)
+    discount_gamma = 0.98 #0.98
+    buffer_length = int(2e5)
+    batch_size = 100 #100
 
     list_of_all_the_data = []
 
@@ -95,13 +94,13 @@ if __name__ == '__main__':
             with torch.no_grad():
                 if t <= warm_up:
                     clipped_action = env.action_space.sample()
-                # else:
-                #     action = behavior_policy.forward(torch.tensor(obs, dtype=torch.float32, device=device))
-                #     expl_noise = noise.sample(action.shape)
-                #     noisy_action = action.cpu().numpy() + expl_noise.cpu().numpy()
-                #     clipped_action = np.clip(noisy_action,
-                #                                 a_min=action_low,
-                #                                 a_max=action_high)
+                else:
+                    action = behavior_policy.forward(torch.tensor(obs, dtype=torch.float32, device=device))
+                    expl_noise = noise.sample(action.shape)
+                    noisy_action = action.cpu().numpy() + expl_noise.cpu().numpy()
+                    clipped_action = np.clip(noisy_action,
+                                                a_min=action_low,
+                                                a_max=action_high)
                 
                 obs_, reward, termination, truncation, _ = env.step(clipped_action)
                 done = termination or truncation
@@ -130,22 +129,19 @@ if __name__ == '__main__':
         env.close()
     
     print('... Saving data ...')
+   
     df = pd.DataFrame(list_of_all_the_data)
-
-    DATA_FOLDER_DIR = os.path.dirname(os.path.join(os.path.abspath(__file__),'Data'))
-    if not os.path.exists(DATA_FOLDER_DIR):
-        os.makedirs(DATA_FOLDER_DIR)
-
-    df.to_csv(f'{DATA_FOLDER_DIR}/metrics.csv', index=False)
+    os.makedirs(DATA_FOLDER, exist_ok=True)    
+    df.to_csv(f'{DATA_FOLDER}/{NOISE}.csv', index=False)
 
     print('... Saved data to CSV ...')
     
-    # # Plotting
-    # if PLOTTING:
-    #     print('Plotting...')
-    #     fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
-    #     plotter = DDPGMetrics(data=f'{DATA_FOLDER}/{NOISE}.csv', show=False, title=f'{NOISE} added Noise', smooth=2)
-    #     plotter.plot_losses(ax=ax)
-        # plt.tight_layout()
-        # plt.show()
+    # Plotting
+    if PLOTTING:
+        print('Plotting...')
+        fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
+        plotter = DDPGMetrics(data=df, show=False, title=f'Ant V4 DDPG', smooth=2)
+        plotter.plot_losses(ax=ax)
+        plt.tight_layout()
+        plt.show()
     
