@@ -33,21 +33,11 @@ if __name__ == '__main__':
     env = gym.make("Ant-v4")
     obs_, _ = env.reset()
 
-    # viewer = env.unwrapped.mujoco_renderer.viewer
-    # viewer.cam.distance = 50  # Increase distance (default is often too close)
-    # viewer.cam.azimuth = 180  # Rotate camera angle
-    # viewer.cam.elevation = -40  # Adjust height/angle
-    # viewer.cam.lookat[:] = [0, 0, 0]  
-
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
-    # print(f"State dimension: {state_dim}, Action dimension: {action_dim}")
+
     action_low = env.action_space.low
     action_high = env.action_space.high
-    # state_low = env.observation_space.low
-    # state_high = env.observation_space.high
-    # print(f"Action low: {action_low}, Action high: {action_high}")
-    # print(f"State low: {state_low}, State high: {state_high}")
 
 
     training_steps = int(1e6)
