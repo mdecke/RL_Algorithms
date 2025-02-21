@@ -6,7 +6,6 @@ from tqdm import tqdm
 
 import sys, os
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
-from Algorithms.CustomPendulum import PendulumEnv
 from Algorithms.DDPG import *
 from MiscFunctions.Plotting import *
 
@@ -14,7 +13,7 @@ from MiscFunctions.Plotting import *
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 2
+NB_TRAINING_CYCLES = 3
 NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
 PLOTTING = False
 
@@ -28,7 +27,16 @@ if __name__ == '__main__':
     else:
         raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
     
-    env = PendulumEnv(dt=0.05,max_epsiode_steps=200, reward='dense')
+    GRAVITY = 10.0
+
+    env = gym.make("Pendulum-v1") #, render_mode = 'human')
+    pendulum_params = {"mass": env.unwrapped.m,
+                       "rod_length": env.unwrapped.l,
+                       "gravity": GRAVITY,
+                       "action_limits": (env.action_space.low, env.action_space.high),
+                       'dt': env.unwrapped.dt}
+
+
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
     
@@ -126,5 +134,9 @@ if __name__ == '__main__':
     # Plotting
     if PLOTTING:
         print('Plotting...')
-        plotter = DDPGMetrics(data=df, show=True, title=f'{NOISE} added noise', smooth=20)
+        fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
+        plotter = DDPGMetrics(data=f'{DATA_FOLDER}/{NOISE}.csv', show=False, title=f'{NOISE} added Noise', smooth=2)
+        plotter.plot_losses(ax=ax)
+        plt.tight_layout()
+        plt.show()
     
