@@ -6,6 +6,7 @@ play2.py
 
 #Folders to ignore:
 Data
+Metrics
 *.egg-info/
 __pycache__/
 *.pyc
