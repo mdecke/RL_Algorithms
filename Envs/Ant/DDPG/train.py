@@ -1,14 +1,13 @@
+import os
 import torch
+import gymnasium as gym
 
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
 from Algorithms.DDPG import *
 from MiscFunctions.Plotting import *
-import gymnasium as gym
 
 
 
@@ -129,16 +128,17 @@ if __name__ == '__main__':
             })
         
         env.close()
-        
-    # df = pd.DataFrame(list_of_all_the_data)
+    
+    print('... Saving data ...')
+    df = pd.DataFrame(list_of_all_the_data)
 
-    # DATA_FOLDER = 'Data/CSVs/Metrics/tests'
-    # if not os.path.exists(DATA_FOLDER):
-    #     os.makedirs(DATA_FOLDER)
+    DATA_FOLDER_DIR = os.path.dirname(os.path.join(os.path.abspath(__file__),'Data'))
+    if not os.path.exists(DATA_FOLDER_DIR):
+        os.makedirs(DATA_FOLDER_DIR)
 
-    # df.to_csv(f'{DATA_FOLDER}/{NOISE}.csv', index=False)
+    df.to_csv(f'{DATA_FOLDER_DIR}/metrics.csv', index=False)
 
-    # print('Saved data to CSV')
+    print('... Saved data to CSV ...')
     
     # # Plotting
     # if PLOTTING:

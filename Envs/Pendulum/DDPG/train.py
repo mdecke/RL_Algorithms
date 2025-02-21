@@ -4,8 +4,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 
-import sys, os
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+import os
 from Algorithms.DDPG import *
 from MiscFunctions.Plotting import *
 
