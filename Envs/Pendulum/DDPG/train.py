@@ -12,9 +12,10 @@ from MiscFunctions.Plotting import *
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 3
+NB_TRAINING_CYCLES = 2
 NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
-PLOTTING = False
+PLOTTING = True
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Metrics")
 
 
 if __name__ == '__main__':
@@ -121,11 +122,7 @@ if __name__ == '__main__':
         env.close()
         
     df = pd.DataFrame(list_of_all_the_data)
-
-    DATA_FOLDER = 'Data/CSVs/Metrics/tests'
-    if not os.path.exists(DATA_FOLDER):
-        os.makedirs(DATA_FOLDER)
-
+    os.makedirs(DATA_FOLDER, exist_ok=True)    
     df.to_csv(f'{DATA_FOLDER}/{NOISE}.csv', index=False)
 
     print('Saved data to CSV')
@@ -134,7 +131,7 @@ if __name__ == '__main__':
     if PLOTTING:
         print('Plotting...')
         fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
-        plotter = DDPGMetrics(data=f'{DATA_FOLDER}/{NOISE}.csv', show=False, title=f'{NOISE} added Noise', smooth=2)
+        plotter = DDPGMetrics(data=df, show=False, title=f'{NOISE} added Noise', smooth=2)
         plotter.plot_losses(ax=ax)
         plt.tight_layout()
         plt.show()
