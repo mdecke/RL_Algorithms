@@ -7,13 +7,15 @@ from tqdm import tqdm
 import os
 from Algorithms.DDPG import *
 from MiscFunctions.Plotting import *
+from MiscFunctions.NoiseModeling import MLESampler
 
 
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
 NB_TRAINING_CYCLES = 1
-NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
+NOISE = 'Custom' # 'Gaussian' or 'OrnsteinUhlenbeck' or 'Custom'
+EXPERT = True
 PLOTTING = True
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Metrics")
 REWARD_TYPE = 'sparse' # 'sparse' or 'dense'
@@ -36,7 +38,7 @@ if __name__ == '__main__':
     action_low = env.action_space.low
     action_high = env.action_space.high
 
-    training_steps = 50000
+    training_steps = 15000
     warm_up = 1
     discount_gamma = 0.99
     buffer_length = 15000
@@ -47,7 +49,8 @@ if __name__ == '__main__':
     elif NOISE == 'OrnsteinUhlenbeck':
         noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
     elif NOISE == 'Custom':
-        pass
+        noise = MLESampler(weight_files='Data/Models/Noise/P(a|s).pth',
+                           input_dim=state_dim-1, output_dim=action_dim, device=device)
     else:
         raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
     
@@ -94,14 +97,22 @@ if __name__ == '__main__':
                 if t <= warm_up:
                     clipped_action = env.action_space.sample()
                 else:
-                    action = behavior_policy.forward(torch.tensor(obs, dtype=torch.float32, device=device))
-                    expl_noise = noise.sample(action.shape)
-                    noisy_action = action.cpu().numpy() + expl_noise.cpu().numpy()
+                    if EXPERT == True:
+                        noise.get_input(obs=obs)
+                        noisy_action = noise.sample(shape=action_dim)
+                        noisy_action = noisy_action.cpu().numpy()
+                    else:
+                        action = behavior_policy.forward(torch.tensor(obs, dtype=torch.float32, device=device))
+                        if NOISE == 'Custom':
+                            noise.get_input(obs=obs)
+                        expl_noise = noise.sample(action.shape)
+                        noisy_action = action.cpu().numpy() + expl_noise.cpu().numpy()
+
                     clipped_action = np.clip(noisy_action,
                                                 a_min=action_low,
                                                 a_max=action_high)
                 
-                obs_, reward, termination, truncation, _ = env.step(obs,clipped_action)
+                obs_, reward, termination, truncation, _ = env.step(obs,clipped_action) #obs,clipped_action
                 done = termination or truncation
                 cumulative_reward += reward
                 memory.add_sample(state=obs, action=clipped_action, reward=reward, next_state=obs_, done=done)
@@ -128,7 +139,7 @@ if __name__ == '__main__':
     
     df = pd.DataFrame(list_of_all_the_data)
     os.makedirs(DATA_FOLDER, exist_ok=True)    
-    df.to_csv(f'{DATA_FOLDER}/{NOISE}_{REWARD_TYPE}.csv', index=False)
+    df.to_csv(f'{DATA_FOLDER}/EXPERT_sparse_single.csv', index=False)
 
     print('Saved data to CSV')
     
