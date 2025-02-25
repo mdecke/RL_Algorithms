@@ -1,7 +1,6 @@
 import gymnasium as gym
 import numpy as np
 
-import random
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -26,7 +25,7 @@ class OrnsteinUhlenbeckNoise:
         self.state += -self.state * self.theta + self.sigma * self.distribution.sample(size)
 
         return self.base_scale * self.state
-    
+  
 class DDPGMemory:
     def __init__(self, state_dim:int, action_dim:int, buffer_length:int):
         self.memory_buffer_length = buffer_length
