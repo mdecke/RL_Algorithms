@@ -1,4 +1,5 @@
 #Files to ignore:
+ExpertController.py
 play.py
 play2.py
 .vscode
