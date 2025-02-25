@@ -27,7 +27,6 @@ class OrnsteinUhlenbeckNoise:
 
         return self.base_scale * self.state
     
-
 class DDPGMemory:
     def __init__(self, state_dim:int, action_dim:int, buffer_length:int):
         self.memory_buffer_length = buffer_length
@@ -80,7 +79,6 @@ class Policy(nn.Module):
         
         return 2 * torch.tanh(self.action_layer(x))
 
-
 class Value(nn.Module):
     def __init__(self, state_dim, action_dim, value_lr, device='cpu'):
         super().__init__()
@@ -110,20 +108,17 @@ def init_model_weights(model:nn.Module, mean=0.0, std=0.1, seed=None):
                 nn.init.normal_(param, mean=mean, std=std)
 
 class DDPG:
-    def __init__(self, env:gym.Env, policy_network:Policy, target_policy:Policy,
-                 value_network:Value, target_value_function:Value, discount_factor:float,
-                 total_training_time:int, seed=None, device='cpu'):
+    def __init__(self, policy_network:Policy, target_policy:Policy,
+                 value_network:Value, target_value_function:Value, 
+                 discount_factor:float, seed=None, device='cpu'):
         
         self.pi = policy_network.to(device=device)
         self.pi_t = target_policy.to(device=device)
         self.q = value_network.to(device=device)
         self.q_t = target_value_function.to(device=device)
         self.gamma = discount_factor
-        self.T = total_training_time
-        self.env = env
         self.pi_loss = []
         self.q_loss = []
-
         self.device = device
         self.seed = seed
 
@@ -133,7 +128,7 @@ class DDPG:
             target_param.data.copy_(tau * source_param.data + (1.0 - tau) * target_param.data)
 
 
-    def train(self,memory_buffer:DDPGMemory, train_iteration:int, batch_size:int, epochs:int):
+    def train(self,memory_buffer:DDPGMemory, batch_size:int, epochs:int):
 
         models = [self.pi, self.pi_t, self.q, self.q_t]
         for model in models:
@@ -187,4 +182,16 @@ class DDPG:
         
         self.pi_loss.append(policy_loss.detach().cpu().numpy().item())
         self.q_loss.append(critic_loss.detach().cpu().numpy().item())
+
+class SparseRewardWrapper(gym.Wrapper):
+    def __init__(self, env):
+        super().__init__(env)
+    
+    def step(self, obs, action):
+        # Take a step using the underlying environment
+        cos_theta, sin_theta, thdot = obs[0], obs[1], obs[2]
+        th = np.arctan2(sin_theta, cos_theta) 
+        cost = - (10*np.tanh(10*th**2) + 0.1*thdot**2 + 0.001*action**2)
+        obs_, _, terminated, truncated, info = self.env.step(action)
         
+        return obs_, cost.squeeze(), terminated, truncated, info

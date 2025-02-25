@@ -12,21 +12,14 @@ from MiscFunctions.Plotting import *
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 2
+NB_TRAINING_CYCLES = 1
 NOISE = 'OrnsteinUhlenbeck' # 'Gaussian' or 'OrnsteinUhlenbeck'
 PLOTTING = True
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Metrics")
+REWARD_TYPE = 'sparse' # 'sparse' or 'dense'
 
 
 if __name__ == '__main__':
-    
-    if NOISE == 'Gaussian':
-        noise = Normal(loc=0, scale=0.2)
-    elif NOISE == 'OrnsteinUhlenbeck':
-        noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
-    else:
-        raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
-    
     GRAVITY = 10.0
 
     env = gym.make("Pendulum-v1") #, render_mode = 'human')
@@ -43,11 +36,24 @@ if __name__ == '__main__':
     action_low = env.action_space.low
     action_high = env.action_space.high
 
-    training_steps = 15000
+    training_steps = 50000
     warm_up = 1
     discount_gamma = 0.99
     buffer_length = 15000
     batch_size = 100
+    
+    if NOISE == 'Gaussian':
+        noise = Normal(loc=0, scale=0.2) 
+    elif NOISE == 'OrnsteinUhlenbeck':
+        noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
+    elif NOISE == 'Custom':
+        pass
+    else:
+        raise ValueError('Noise must be either Gaussian or OrnsteinUhlenbeck')
+    
+    if REWARD_TYPE == 'sparse':
+        env = SparseRewardWrapper(env)
+
 
     list_of_all_the_data = []
 
@@ -72,9 +78,9 @@ if __name__ == '__main__':
         target_q.load_state_dict(behavior_q.state_dict())
 
         
-        agent = DDPG(policy_network=behavior_policy, target_policy=target_policy, env=env,
+        agent = DDPG(policy_network=behavior_policy, target_policy=target_policy,
                     value_network=behavior_q, target_value_function=target_q,
-                    discount_factor=discount_gamma, total_training_time=training_steps,seed=seed_torch, device=device)
+                    discount_factor=discount_gamma, seed=seed_torch, device=device)
         
         memory = DDPGMemory(state_dim=state_dim, action_dim=action_dim, buffer_length=buffer_length)
 
@@ -95,14 +101,13 @@ if __name__ == '__main__':
                                                 a_min=action_low,
                                                 a_max=action_high)
                 
-                obs_, reward, termination, truncation, _ = env.step(clipped_action)
+                obs_, reward, termination, truncation, _ = env.step(obs,clipped_action)
                 done = termination or truncation
                 cumulative_reward += reward
-                
                 memory.add_sample(state=obs, action=clipped_action, reward=reward, next_state=obs_, done=done)
             
             if t>=warm_up and len(memory.states) >= batch_size:
-                agent.train(memory_buffer=memory, train_iteration=t, batch_size=batch_size,epochs=1)
+                agent.train(memory_buffer=memory, batch_size=batch_size, epochs=1)
             
             if done:
                 episodic_returns.append(cumulative_reward)
@@ -120,10 +125,10 @@ if __name__ == '__main__':
             })
         
         env.close()
-        
+    
     df = pd.DataFrame(list_of_all_the_data)
     os.makedirs(DATA_FOLDER, exist_ok=True)    
-    df.to_csv(f'{DATA_FOLDER}/{NOISE}.csv', index=False)
+    df.to_csv(f'{DATA_FOLDER}/{NOISE}_{REWARD_TYPE}.csv', index=False)
 
     print('Saved data to CSV')
     
