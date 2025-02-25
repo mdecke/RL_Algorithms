@@ -96,7 +96,10 @@ class DDPGMetrics:
         ax[2].set_ylabel('Return')
         ax[2].set_xlabel('Training Episodes')
         ax[2].set_title(f'Episodic Return (smoothed = {self.smooth})')
-        
+
+        ax[2].axhline(y=0, color='k', linewidth=2)
+        ax[2].set_ylim(top=50)
+
         for i in range(3):
             ax[i].set_facecolor('lightgrey')
             ax[i].grid(True)
