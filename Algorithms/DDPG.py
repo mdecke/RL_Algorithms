@@ -110,7 +110,7 @@ def init_model_weights(model:nn.Module, mean=0.0, std=0.1, seed=None):
                 nn.init.normal_(param, mean=mean, std=std)
 
 class DDPG:
-    def __init__(self, policy_network:Policy, target_policy:Policy,env:gym.Env,
+    def __init__(self, env:gym.Env, policy_network:Policy, target_policy:Policy,
                  value_network:Value, target_value_function:Value, discount_factor:float,
                  total_training_time:int, seed=None, device='cpu'):
         
