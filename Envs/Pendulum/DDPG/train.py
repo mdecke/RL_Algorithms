@@ -13,24 +13,26 @@ from MiscFunctions.NoiseModeling import MLESampler
 # device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
 # print(f"Using device: {device}")
 device = 'cpu'
-NB_TRAINING_CYCLES = 1
+
+NB_TRAINING_CYCLES = 3
+BEST_SO_FAR = -np.inf
+
 NOISE = 'Custom' # 'Gaussian' or 'OrnsteinUhlenbeck' or 'Custom'
+REWARD_TYPE = 'dense' # 'sparse' or 'dense'
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Metrics")
+BEST_MODEL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "TrainedModels")
+
 EXPERT = True
 PLOTTING = True
-DATA_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "Metrics")
-REWARD_TYPE = 'sparse' # 'sparse' or 'dense'
 
 
 if __name__ == '__main__':
     GRAVITY = 10.0
+    os.makedirs(DATA_FOLDER, exist_ok=True) 
+    os.makedirs(BEST_MODEL_FOLDER, exist_ok=True) 
 
     env = gym.make("Pendulum-v1") #, render_mode = 'human')
-    pendulum_params = {"mass": env.unwrapped.m,
-                       "rod_length": env.unwrapped.l,
-                       "gravity": GRAVITY,
-                       "action_limits": (env.action_space.low, env.action_space.high),
-                       'dt': env.unwrapped.dt}
-
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -39,7 +41,7 @@ if __name__ == '__main__':
     action_high = env.action_space.high
 
     training_steps = 15000
-    warm_up = 1
+    warm_up = 100
     discount_gamma = 0.99
     buffer_length = 15000
     batch_size = 100
@@ -112,7 +114,7 @@ if __name__ == '__main__':
                                                 a_min=action_low,
                                                 a_max=action_high)
                 
-                obs_, reward, termination, truncation, _ = env.step(obs,clipped_action) #obs,clipped_action
+                obs_, reward, termination, truncation, _ = env.step(clipped_action) #obs,clipped_action
                 done = termination or truncation
                 cumulative_reward += reward
                 memory.add_sample(state=obs, action=clipped_action, reward=reward, next_state=obs_, done=done)
@@ -122,6 +124,10 @@ if __name__ == '__main__':
             
             if done:
                 episodic_returns.append(cumulative_reward)
+                if cumulative_reward > BEST_SO_FAR:
+                    best_return_so_far = cumulative_reward
+                    torch.save(behavior_policy.state_dict(), f'{BEST_MODEL_FOLDER}/Expert_policy.pth')
+
                 cumulative_reward = 0
                 obs, _ = env.reset(options={'x_init': np.pi, 'y_init': 8.0})
             else:
@@ -135,20 +141,20 @@ if __name__ == '__main__':
                 'return': episodic_returns[i] if i < len(episodic_returns) else np.nan,
             })
         
-        env.close()
-    
-    df = pd.DataFrame(list_of_all_the_data)
-    os.makedirs(DATA_FOLDER, exist_ok=True)    
-    df.to_csv(f'{DATA_FOLDER}/EXPERT_sparse_single.csv', index=False)
+    env.close()
 
-    print('Saved data to CSV')
-    
-    # Plotting
-    if PLOTTING:
-        print('Plotting...')
-        fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
-        plotter = DDPGMetrics(data=df, show=False, title=f'{NOISE} added Noise', smooth=2)
-        plotter.plot_losses(ax=ax)
-        plt.tight_layout()
-        plt.show()
+df = pd.DataFrame(list_of_all_the_data)
+os.makedirs(DATA_FOLDER, exist_ok=True)    
+df.to_csv(f'{DATA_FOLDER}/EXPERT_sparse_single.csv', index=False)
+
+print('Saved data to CSV')
+
+# Plotting
+if PLOTTING:
+    print('Plotting...')
+    fig, ax = plt.subplots(3, 1, sharex=False, figsize=(15, 8))
+    plotter = DDPGMetrics(data=df, show=False, title=f'{NOISE} added Noise', smooth=2)
+    plotter.plot_losses(ax=ax)
+    plt.tight_layout()
+    plt.show()
     
