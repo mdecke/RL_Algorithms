@@ -60,7 +60,7 @@ class DDPGMemory:
         )    
 
 class Policy(nn.Module):
-    def __init__(self, state_dim, action_dim, policy_lr, device='cpu'):
+    def __init__(self, state_dim, action_dim, policy_lr=1e-3, device='cpu'):
         super().__init__()
         self.state_dim = state_dim
         self.action_dim = action_dim
