@@ -12,9 +12,9 @@ from Algorithms.DDPG import Policy
 seed(42)
 
 BEST_MODEL_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), "TrainedModels")
-N_EPISODES = 10
+N_EPISODES = 5000
 
-env = gym.make("Pendulum-v1", render_mode='human')
+env = gym.make("Pendulum-v1")#, render_mode='human')
 obs, _ = env.reset()
 
 obs_dim = env.observation_space.shape[0]
@@ -50,7 +50,7 @@ for i in range(N_EPISODES):
 
 print("done")
 env.close()
-quit()
+
 avged_returns = []
 for i in range(0, len(episodic_return)-1):
     avged_returns.append(np.mean(episodic_return[0:i+1]))
