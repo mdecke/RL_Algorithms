@@ -21,7 +21,8 @@ for NOISE in "${NOISES[@]}"; do
       --NOISE "$NOISE" \
       --REWARD_TYPE "$REWARD_TYPE" \
       --training_steps 15000 \
-      --batch_size 100 
+      --batch_size 100 \
+      --PLOTTING
   done
 done
 

@@ -1,4 +1,3 @@
-import argparse
 import torch
 
 import numpy as np
@@ -161,4 +160,3 @@ def train(args):
         plotter.plot_losses(ax=ax)
         plt.tight_layout()
         plt.show()
-

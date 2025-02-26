@@ -1,4 +1,6 @@
-from Envs.Pendulum.DDPG.BaselineNoise import *
+import argparse
+from Envs.Pendulum.DDPG.BaselineNoise import train
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
