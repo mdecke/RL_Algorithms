@@ -8,6 +8,7 @@ play2.py
 #Folders to ignore:
 Data
 Metrics
+TrainedModels
 *.egg-info/
 __pycache__/
 *.pyc
