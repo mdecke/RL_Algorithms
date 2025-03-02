@@ -14,11 +14,11 @@ ou_plotter = DDPGMetrics(file_path=f'Envs/Pendulum/DDPG/Metrics/OrnsteinUhlenbec
                          show=False, title='OU added Noise', smooth=SMOOTHING_WINDOW)
 ou_plotter.plot_losses(ax=ax)
 
-custom_plotter = DDPGMetrics(file_path=f'Envs/Pendulum/DDPG/Metrics/Custom_{REWARD_TYPE}.csv',
+custom_plotter = DDPGMetrics(file_path=f'Envs/Pendulum/DDPG/Metrics/CustomNoise_{REWARD_TYPE}.csv',
                              show=False, title='Custom added Noise', smooth=SMOOTHING_WINDOW)
 custom_plotter.plot_losses(ax=ax)
 
-expert_plotter = DDPGMetrics(file_path=f'Envs/Pendulum/DDPG/Metrics/Expert_{REWARD_TYPE}.csv',
+expert_plotter = DDPGMetrics(file_path=f'Envs/Pendulum/DDPG/Metrics/CustomExpert_{REWARD_TYPE}.csv',
                              show=False, title='EXPERT Policy', smooth=SMOOTHING_WINDOW)
 expert_plotter.plot_losses(ax=ax)
 
