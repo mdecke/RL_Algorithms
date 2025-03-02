@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 import os
 from Algorithms.DDPG import *
+from Algorithms.CustomRewards import SparsePendulumRewardWrapper
 from MiscFunctions.Plotting import *
 
 def train(args):
@@ -44,7 +45,7 @@ def train(args):
     env = gym.make(env_name) #, render_mode='human')
     
     if REWARD_TYPE == 'sparse':
-        env = SparseRewardWrapper(env)
+        env = SparsePendulumRewardWrapper(env)
 
     state_dim = env.observation_space.shape[0]
     action_dim = env.action_space.shape[0]
@@ -100,7 +101,7 @@ def train(args):
 
         progress_bar = tqdm(range(training_steps), desc=f"Cycle {cycle_idx+1}/{NB_TRAINING_CYCLES}", unit="step")
         for t in progress_bar:
-            if t <= warm_up:
+            if t < warm_up:
                 clipped_action = env.action_space.sample()
             else:
                 with torch.no_grad():
