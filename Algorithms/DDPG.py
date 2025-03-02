@@ -182,5 +182,3 @@ class DDPG:
         self.pi_loss.append(policy_loss.detach().cpu().numpy().item())
         self.q_loss.append(critic_loss.detach().cpu().numpy().item())
 
-
-        return ((x + np.pi) % (2 * np.pi)) - np.pi
