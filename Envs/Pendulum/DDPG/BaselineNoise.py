@@ -6,8 +6,9 @@ from tqdm import tqdm
 
 import os
 from Algorithms.DDPG import *
-from Algorithms.CustomRewards import SparsePendulumRewardWrapper
+# from Algorithms.CustomRewards import SparsePendulumRewardWrapper
 from MiscFunctions.Plotting import *
+import datetime
 
 def train(args):
     """
@@ -27,8 +28,8 @@ def train(args):
     buffer_length      = args.buffer_length
     batch_size         = args.batch_size
 
-    data_folder        = "Metrics"
-    best_model_folder  = "TrainedModels"
+    data_folder        = f"Metrics/Short_{datetime.date.today()}"
+    best_model_folder  = f"TrainedModels/Short_{datetime.date.today()}"
 
     BEST_SO_FAR = -np.inf
 
@@ -55,7 +56,7 @@ def train(args):
     if NOISE == 'Gaussian':
         noise = Normal(loc=0, scale=0.2)
     elif NOISE == 'OrnsteinUhlenbeck':
-        noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.2, base_scale=0.1)
+        noise = OrnsteinUhlenbeckNoise(theta=0.15, sigma=0.1, base_scale=0.1)
     else:
         raise ValueError('Invalid noise type. Choose "Gaussian" or "OrnsteinUhlenbeck".')
     
@@ -95,7 +96,7 @@ def train(args):
 
         memory = DDPGMemory(state_dim=state_dim, action_dim=action_dim, buffer_length=buffer_length)
 
-        obs, _ = env.reset()
+        obs, _ = env.reset(seed=int(seeds[cycle_idx]),options={'x_init': np.pi, 'y_init': 8.0})
         episodic_returns = []
         cumulative_reward = 0
 
@@ -111,10 +112,11 @@ def train(args):
                 clipped_action = np.clip(noisy_action, a_min=action_low, a_max=action_high)
 
             if REWARD_TYPE == 'sparse':
-                obs_, reward, done, truncated, _ = env.step(obs, clipped_action)
+                obs_, reward, terminated, truncated, _ = env.step(obs, clipped_action)
             else:
-                obs_, reward, done, truncated, _ = env.step(clipped_action)
-            done = done or truncated
+                obs_, reward, terminated, truncated, _ = env.step(clipped_action)
+            
+            done = terminated or truncated
 
             cumulative_reward += reward
             memory.add_sample(state=obs, action=clipped_action, reward=reward, next_state=obs_, done=done)
@@ -130,7 +132,7 @@ def train(args):
                     torch.save(behavior_policy.state_dict(), f"{best_model_folder}/{NOISE}_{REWARD_TYPE}.pth")
 
                 cumulative_reward = 0
-                obs, _ = env.reset()
+                obs, _ = env.reset(options={'x_init': np.pi, 'y_init': 8.0})
             else:
                 obs = obs_.copy()
 
