@@ -6,9 +6,9 @@ from tqdm import tqdm
 
 import os
 from Algorithms.DDPG import *
-# from Algorithms.CustomRewards import SparsePendulumRewardWrapper
 from MiscFunctions.Plotting import *
 import datetime
+
 
 def train(args):
     """
@@ -60,6 +60,7 @@ def train(args):
     else:
         raise ValueError('Invalid noise type. Choose "Gaussian" or "OrnsteinUhlenbeck".')
     
+    np.random.seed(42)
     seeds = np.random.randint(0, 2**32 - 1, size=NB_TRAINING_CYCLES)
 
     print(f"[INFO] Cycle seeds: {seeds}")
