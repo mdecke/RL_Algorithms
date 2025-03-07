@@ -4,9 +4,13 @@ play.py
 play2.py
 .vscode
 .DS_Store
+Data/Models/energy_shaping_lqr_model.pth
+Data/Models/P(a)_KDE.pkl
+Data/Models/P(a)KDE.pkl
 
 #Folders to ignore:
-Data
+Data/CSVs
+Data/Plots
 Metrics
 TrainedModels
 *.egg-info/
@@ -14,6 +18,3 @@ __pycache__/
 *.pyc
 *.pyo
 *.pyd
-
-
-
