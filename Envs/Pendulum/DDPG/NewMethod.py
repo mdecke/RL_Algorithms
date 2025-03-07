@@ -7,9 +7,10 @@ from tqdm import tqdm
 
 import os
 from Algorithms.DDPG import *
-from Algorithms.CustomRewards import SparsePendulumRewardWrapper
 from MiscFunctions.Plotting import *
 from MiscFunctions.NoiseModeling import MLESampler
+
+import datetime
 
 def train(args):
     """
@@ -29,8 +30,8 @@ def train(args):
     buffer_length      = args.buffer_length
     batch_size         = args.batch_size
 
-    data_folder        = "Metrics"
-    best_model_folder  = "TrainedModels"
+    data_folder        = f"Metrics/Short_{datetime.date.today()}"
+    best_model_folder  = f"TrainedModels/Short_{datetime.date.today()}"
 
     BEST_SO_FAR = -np.inf
 
@@ -58,6 +59,7 @@ def train(args):
                        input_dim=state_dim-1, output_dim=action_dim, device=device)
     assert isinstance(noise, MLESampler)
     
+    np.random.seed(0)
     seeds = np.random.randint(0, 2**32 - 1, size=NB_TRAINING_CYCLES)
 
     print(f"[INFO] Cycle seeds: {seeds}")
@@ -152,7 +154,7 @@ def train(args):
                 episodic_returns.append(cumulative_reward)
                 if cumulative_reward > BEST_SO_FAR:
                     BEST_SO_FAR = cumulative_reward
-                    torch.save(behavior_policy.state_dict(), f"{best_model_folder}/Custom{EXPERT}_{REWARD_TYPE}.pth")
+                    torch.save(behavior_policy.state_dict(), f"{best_model_folder}/ExpertAddition_{REWARD_TYPE}.pth")
 
                 cumulative_reward = 0
                 obs, _ = env.reset()

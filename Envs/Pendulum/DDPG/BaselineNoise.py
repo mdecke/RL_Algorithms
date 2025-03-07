@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 import os
 from Algorithms.DDPG import *
+from Algorithms.CustomRewards import SparsePendulumRewardWrapper
 from MiscFunctions.Plotting import *
 import datetime
 
@@ -14,7 +15,7 @@ def train(args):
     """
     Train a DDPG agent on Pendulum-v1.
     """
-
+    np.random.seed(42)
     # Unpack all arguments from args
     env_name           = args.env_name
     NB_TRAINING_CYCLES = args.NB_TRAINING_CYCLES
@@ -28,8 +29,8 @@ def train(args):
     buffer_length      = args.buffer_length
     batch_size         = args.batch_size
 
-    data_folder        = f"Metrics/Short_{datetime.date.today()}"
-    best_model_folder  = f"TrainedModels/Short_{datetime.date.today()}"
+    data_folder        = f"Metrics/5m_{datetime.date.today()}"
+    best_model_folder  = f"TrainedModels/5m_{datetime.date.today()}"
 
     BEST_SO_FAR = -np.inf
 
@@ -44,7 +45,9 @@ def train(args):
 #______________________________________________________ Environment setup ____________________________________________________
     
     env = gym.make(env_name) #, render_mode='human')
+    env.unwrapped.m = 5.0
     
+
     if REWARD_TYPE == 'sparse':
         env = SparsePendulumRewardWrapper(env)
 
@@ -60,9 +63,8 @@ def train(args):
     else:
         raise ValueError('Invalid noise type. Choose "Gaussian" or "OrnsteinUhlenbeck".')
     
-    np.random.seed(42)
-    seeds = np.random.randint(0, 2**32 - 1, size=NB_TRAINING_CYCLES)
-
+    
+    seeds = np.random.randint(0, 2**32 - 1, size=NB_TRAINING_CYCLES, )
     print(f"[INFO] Cycle seeds: {seeds}")
 
 #______________________________________________________ Training loop ____________________________________________________

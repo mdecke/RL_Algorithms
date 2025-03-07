@@ -3,7 +3,7 @@
 # This script will run multiple experiments by calling train.py with different parameters.
 
 # Arrays (or lists) of hyperparameters to try:
-EXPERTS=("Noise" "Expert")
+EXPERTS=("Noise")
 REWARDS=("dense" "sparse")
 
 # Loop over each combination of EXPERT and REWARD
@@ -17,13 +17,13 @@ for EXPERT in "${EXPERTS[@]}"; do
 
     # Because train.py is in ../DDDG/ relative to the scripts folder:
     python ../Envs/Pendulum/DDPG/train_new_method.py \
-      --NB_TRAINING_CYCLES 1 \
+      --NB_TRAINING_CYCLES 10 \
       --EXPERT "$EXPERT" \
       --REWARD_TYPE "$REWARD_TYPE" \
       --training_steps 15000 \
-      --warm_up 1 \
+      --warm_up 0 \
       --batch_size 100 \
-      --PLOTTING
+      
   done
 done
 

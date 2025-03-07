@@ -91,12 +91,12 @@ class DDPGMetrics:
                 fig, ax = plt.subplots(1, 1, sharex=False, figsize=(10, 8))
 
             ax.plot(self.n_episodes, self.episodic_returns['mean'], label=f'{self.title}')
-            # ax.fill_between(self.n_episodes,
-            #                 self.episodic_returns['lower'],
-            #                 self.episodic_returns['upper'],
-            #                 alpha=0.1)
+            ax.fill_between(self.n_episodes,
+                            self.episodic_returns['lower'],
+                            self.episodic_returns['upper'],
+                            alpha=0.1)
             ax.set_ylabel('Return')
-            ax.set_xlabel('Training Episodes')
+            ax.set_xlabel('Training Steps')
             ax.set_title(f'Mean Episodic Return (smoothed = {self.smooth})')
 
             # Draw zero line + top limit
@@ -119,7 +119,7 @@ class DDPGMetrics:
             #                    self.episodic_returns['upper'],
             #                    alpha=0.1)
             ax[0].set_ylabel('Return')
-            ax[0].set_xlabel('Training Episodes')
+            ax[0].set_xlabel('Training Steps')
             ax[0].set_title(f'Mean Episodic Return (smoothed = {self.smooth})')
             ax[0].axhline(y=0, color='k', linewidth=2)
             ax[0].set_ylim(top=100)

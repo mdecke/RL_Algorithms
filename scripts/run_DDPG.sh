@@ -17,10 +17,10 @@ for NOISE in "${NOISES[@]}"; do
 
     # Because train.py is in ../DDDG/ relative to the scripts folder:
     python ../Envs/Pendulum/DDPG/train.py \
-      --NB_TRAINING_CYCLES 10 \
+      --NB_TRAINING_CYCLES 5\
       --NOISE "$NOISE" \
       --REWARD_TYPE "$REWARD_TYPE" \
-      --training_steps 15000 \
+      --training_steps 30000 \
       --warm_up 0 \
       --batch_size 100 \
 
