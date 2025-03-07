@@ -1,0 +1,19 @@
+#Files to ignore:
+ExpertController.py
+play.py
+play2.py
+.vscode
+.DS_Store
+
+#Folders to ignore:
+Data
+Metrics
+TrainedModels
+*.egg-info/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+
+
