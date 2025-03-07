@@ -11,6 +11,7 @@ Data/Models/P(a)KDE.pkl
 #Folders to ignore:
 Data/CSVs
 Data/Plots
+Envs/Ant
 Metrics
 TrainedModels
 *.egg-info/
