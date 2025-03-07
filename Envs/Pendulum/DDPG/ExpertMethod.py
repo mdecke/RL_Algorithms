@@ -62,8 +62,8 @@ def train(args):
     buffer_length      = args.buffer_length
     batch_size         = args.batch_size
 
-    data_folder        = f"Metrics/5m_{datetime.date.today()}"
-    best_model_folder  = f"TrainedModels/5m_{datetime.date.today()}"
+    data_folder        = f"Metrics/{datetime.date.today()}"
+    best_model_folder  = f"TrainedModels/{datetime.date.today()}"
 
     BEST_SO_FAR = -np.inf
 
@@ -214,7 +214,7 @@ def train(args):
 #______________________________________________________ Save data ____________________________________________________
 
     df = pd.DataFrame(list_of_all_the_data)
-    csv_filename = f"NewCustom{EXPERT}_{REWARD_TYPE}.csv"
+    csv_filename = f"{EXPERT}_{REWARD_TYPE}.csv" # Expert means only using the expert, Noise means infusin via eta scheme
     df.to_csv(os.path.join(data_folder, csv_filename), index=False)
     print(f"[INFO] Metrics saved to: {os.path.join(data_folder, csv_filename)}")
 

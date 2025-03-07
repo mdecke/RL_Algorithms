@@ -29,8 +29,8 @@ def train(args):
     buffer_length      = args.buffer_length
     batch_size         = args.batch_size
 
-    data_folder        = f"Metrics/5m_{datetime.date.today()}"
-    best_model_folder  = f"TrainedModels/5m_{datetime.date.today()}"
+    data_folder        = f"Metrics/{datetime.date.today()}"
+    best_model_folder  = f"TrainedModels/{datetime.date.today()}"
 
     BEST_SO_FAR = -np.inf
 
