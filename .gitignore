@@ -13,8 +13,7 @@ MiscFunctions/NoiseModeling.py
 scripts/run_expert_training.sh
 
 #Folders to ignore:
-Data/CSVs
-Data/Plots
+Data*/
 Envs/Ant
 Metrics
 TrainedModels
