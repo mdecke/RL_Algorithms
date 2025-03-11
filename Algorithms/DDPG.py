@@ -1,4 +1,26 @@
-import gymnasium as gym
+# Code inspired from Phil Tarbor and SKRL
+
+# ***************************************************************************************
+# *    Title: Reinforcement Learning in Continuous Action Spaces | DDPG Tutorial (Pytorch)
+# *    Author: Phil Tarbor
+# *    Date:  Jun 27, 2019
+# *    Availability: https://www.youtube.com/watch?v=6Yd5WnYls_Y&t=42s
+
+#      @article{serrano2023skrl,
+#      author  = {Antonio Serrano-Muñoz and Dimitrios Chrysostomou and Simon Bøgh and Nestor Arana-Arexolaleiba},
+#      title   = {skrl: Modular and Flexible Library for Reinforcement Learning},
+#      journal = {Journal of Machine Learning Research},
+#      year    = {2023},
+#      volume  = {24},
+#      number  = {254},
+#      pages   = {1--9},
+#      url     = {http://jmlr.org/papers/v24/23-0112.html}
+#      }
+
+# ***************************************************************************************/
+
+
+
 import numpy as np
 
 import torch
