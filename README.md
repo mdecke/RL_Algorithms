@@ -16,9 +16,35 @@ This repo is made of personal implementations of classical reinforcement learnin
 
 ## Usage
 
+To set up the environment, follow these steps:
 
-install from source and run the .sh script
+1. **Clone the Repository**
+   ```bash
+   git clone https://github.com/mdecke/<your-repo>.git
+   cd <your-repo>
+   ```
+2. **Install all dependencies**
+   ```bash
+   pip install --ugrade pip
+   pip install -e .
+   ```
+3. **Run Training**
+   Modfiy the scripts/run_DDPG.sh file to match your desired hyperparameters (number of training steps, cycles, individual plotting ...)
+   ```bash
+   scripts/run_DDPG.sh 
+   ```
+   The training script will:
+    - Run multiple training cycles.
+    - Save training metrics in the Envs/Pendulum/DDPG/Metrics/ folder.
+    - Save trained models in the Envs/Pendulum/DDPG/TrainedModels/ folder.
+  Go to Envs/Pendulum/DDPG/BaselineNoise.py to change saving folders if needed.
 
+4. **Visualize Training**
+   Once training is complete, you can visualize the performance metrics using:
+   ```bash
+   python Envs/Pendulu/DDPG/PlotMetrics.py
+   ```
+   This script will generate plots showing the training progress.
 
 
 
@@ -37,3 +63,7 @@ install from source and run the .sh script
   pages   = {1--9},
   url     = {http://jmlr.org/papers/v24/23-0112.html}
 }
+
+##License
+
+
