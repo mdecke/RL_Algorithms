@@ -7,6 +7,10 @@ play2.py
 Data/Models/energy_shaping_lqr_model.pth
 Data/Models/P(a)_KDE.pkl
 Data/Models/P(a)KDE.pkl
+Envs/Pendulum/DDPG/ExpertMethod.py
+Envs/Pendulum/DDPG/train_expert_method.py
+MiscFunctions/NoiseModeling.py
+scripts/run_expert_training.sh
 
 #Folders to ignore:
 Data/CSVs
