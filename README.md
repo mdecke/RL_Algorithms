@@ -26,7 +26,7 @@ install from source and run the .sh script
 
 1. Brockman, G., Cheung, V., Pettersson, L., Schneider, J., Schulman, J., Tang, J., & Zaremba, W. (2016). **OpenAI Gym**. *arXiv preprint arXiv:1606.01540*. [Link to paper](https://arxiv.org/abs/1606.01540)
 2. Lillicrap, T. P., Hunt, J. J., Pritzel, A., Heess, N., Erez, T., Tassa, Y., Silver, D., & Wierstra, D. (2019). **Continuous control with deep reinforcement learning**. *arXiv preprint arXiv:1509.02971*. [Link to paper](https://arxiv.org/abs/1509.02971)
-3.Phil Tarbor youtube page: https://www.youtube.com/@MachineLearningwithPhil
+3. Phil Tarbor youtube page: https://www.youtube.com/@MachineLearningwithPhil
 4. @article{serrano2023skrl,
   author  = {Antonio Serrano-Muñoz and Dimitrios Chrysostomou and Simon Bøgh and Nestor Arana-Arexolaleiba},
   title   = {skrl: Modular and Flexible Library for Reinforcement Learning},
