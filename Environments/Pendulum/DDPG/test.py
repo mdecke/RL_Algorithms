@@ -7,7 +7,7 @@ import torch
 import os
 
 from numpy.random import seed
-from Algorithms.DDPG import Policy
+from Algos.DDPG import Policy
 
 seed(42)
 

@@ -7,9 +7,9 @@ import pandas as pd
 from tqdm import tqdm
 
 import os
-from Algorithms.DDPG import *
-from Algorithms.CustomRewards import SparsePendulumRewardWrapper
-from MiscFunctions.Plotting import *
+from Algos.DDPG import *
+from Algos.CustomRewards import SparsePendulumRewardWrapper
+from HelperFunctions.Plotting import *
 import datetime
 
 

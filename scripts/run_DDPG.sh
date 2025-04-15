@@ -16,7 +16,7 @@ for NOISE in "${NOISES[@]}"; do
     echo "--------------------------------------------------"
 
     # Because train.py is in ../DDDG/ relative to the scripts folder:
-    python ../Envs/Pendulum/DDPG/train.py \
+    python ../Environments/Pendulum/DDPG/train.py \
       --NB_TRAINING_CYCLES 5\
       --NOISE "$NOISE" \
       --REWARD_TYPE "$REWARD_TYPE" \

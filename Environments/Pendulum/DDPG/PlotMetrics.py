@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
 
-from MiscFunctions.Plotting import *
+from HelperFunctions.Plotting import *
 import datetime
 
 SMOOTHING_WINDOW = 5
