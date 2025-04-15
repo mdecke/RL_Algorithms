@@ -8,7 +8,7 @@ from tqdm import tqdm
 import os
 from Algorithms.DDPG import *
 from Algorithms.CustomRewards import SparsePendulumRewardWrapper
-from MiscFunctions.Plotting import *
+from HelperFunctions.Plotting import *
 import datetime
 
 

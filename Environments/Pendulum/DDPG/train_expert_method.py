@@ -1,5 +1,5 @@
 import argparse
-from Envs.Pendulum.DDPG.ExpertMethod import train
+from Environments.Pendulum.DDPG.ExpertMethod import train
 
 
 if __name__ == "__main__":

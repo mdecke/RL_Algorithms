@@ -8,8 +8,8 @@ from tqdm import tqdm
 import os
 from Algorithms.DDPG import *
 from Algorithms.CustomRewards import SparsePendulumRewardWrapper
-from MiscFunctions.Plotting import *
-from MiscFunctions.NoiseModeling import MLESampler
+from HelperFunctions.Plotting import *
+from HelperFunctions.NoiseModeling import MLESampler
 import datetime
 
 def get_eta(t, total_steps):

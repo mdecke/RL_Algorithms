@@ -1,5 +1,5 @@
 import argparse
-from Envs.Pendulum.DDPG.BaselineNoise import train
+from Environments.Pendulum.DDPG.BaselineNoise import train
 
 
 if __name__ == "__main__":
